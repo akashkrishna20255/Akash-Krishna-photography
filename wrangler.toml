@@ -13,22 +13,11 @@ binding = "ASSETS"
 # -------------------------------------------------------------------
 # Cloudflare KV Namespace Binding:
 # -------------------------------------------------------------------
-# To enable persistent Cloudflare KV storage:
-#
-# STEP 1: Create your KV namespace in Cloudflare:
-#   npx wrangler kv namespace create PHOTO_KV
-#
-# STEP 2: Wrangler will output something like:
-#   [[kv_namespaces]]
-#   binding = "PHOTO_KV"
-#   id = "0123456789abcdef0123456789abcdef"
-#
-# STEP 3: Uncomment the 3 lines below and replace YOUR_32_CHAR_KV_ID with your real ID:
-#
-# [[kv_namespaces]]
-# binding = "PHOTO_KV"
-# id = "YOUR_32_CHAR_KV_ID"
-#
+
+[[kv_namespaces]]
+binding = "PHOTO_KV"
+id = "df95a8170bfdc8f75cb38396bcc63fa1"
+
 # NOTE: If deploying via Cloudflare Pages (Pages Dashboard):
 # Go to: Settings > Functions > KV namespace bindings > Add binding:
 # Variable name: PHOTO_KV -> Select your KV namespace.
