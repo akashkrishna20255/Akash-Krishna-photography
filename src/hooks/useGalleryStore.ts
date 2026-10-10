@@ -105,6 +105,33 @@ export const useGalleryStore = () => {
     initHash();
   }, []);
 
+  // Sync photos from Cloudflare KV backend /api/photos on mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchKvPhotos = async () => {
+      try {
+        const res = await fetch('/api/photos');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0 && isMounted) {
+            setPhotos(data);
+            try {
+              localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(data));
+            } catch (err) {
+              console.warn('LocalStorage save failed:', err);
+            }
+          }
+        }
+      } catch {
+        // Fallback to local storage
+      }
+    };
+    fetchKvPhotos();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Sync photos to localStorage
   useEffect(() => {
     try {
@@ -251,7 +278,7 @@ export const useGalleryStore = () => {
     }));
   };
 
-  // Photo CRUD Operations
+  // Photo CRUD Operations with Cloudflare KV /api/photos sync
   const addPhoto = (photo: Omit<GalleryPhoto, 'id'>) => {
     const newPhoto: GalleryPhoto = {
       ...photo,
@@ -264,6 +291,21 @@ export const useGalleryStore = () => {
       } catch (e) {
         console.warn('Failed to immediately persist photos to localStorage:', e);
       }
+
+      // Sync to Cloudflare Worker KV backend
+      fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next)
+      }).catch(() => {});
+
+      // Sync individual photo_1 key as requested (env.PHOTO_KV.put("photo_1", data))
+      fetch('/api/kv/photo_1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPhoto)
+      }).catch(() => {});
+
       return next;
     });
     return newPhoto;
@@ -277,6 +319,32 @@ export const useGalleryStore = () => {
       } catch (e) {
         console.warn('Failed to immediately persist updated photo to localStorage:', e);
       }
+
+      const updatedPhoto = next.find((p) => p.id === id);
+
+      // Sync full collection to Cloudflare Worker KV
+      fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next)
+      }).catch(() => {});
+
+      // Sync individual photo to Cloudflare Worker KV
+      if (updatedPhoto) {
+        fetch(`/api/photos/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedPhoto)
+        }).catch(() => {});
+
+        // Also update photo_1 key
+        fetch('/api/kv/photo_1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedPhoto)
+        }).catch(() => {});
+      }
+
       return next;
     });
     return true;
@@ -290,6 +358,18 @@ export const useGalleryStore = () => {
       } catch (e) {
         console.warn('Failed to immediately persist photo deletion:', e);
       }
+
+      // Sync collection and deletion to Cloudflare Worker KV
+      fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next)
+      }).catch(() => {});
+
+      fetch(`/api/photos/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      }).catch(() => {});
+
       return next;
     });
   };
@@ -297,6 +377,16 @@ export const useGalleryStore = () => {
   const resetToDefaultPhotos = () => {
     if (!isAdmin) return;
     setPhotos(DEFAULT_PHOTOS);
+    try {
+      localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(DEFAULT_PHOTOS));
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
+    }
+    fetch('/api/photos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(DEFAULT_PHOTOS)
+    }).catch(() => {});
   };
 
   const resetSiteContentToDefaults = () => {
