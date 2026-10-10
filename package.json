@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite --port=3000 --host=0.0.0.0\" \"tsx server.ts\"",
+    "dev": "concurrently \"vite --port=3000 --host=0.0.0.0\" \"PORT=3005 tsx server.ts\"",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -14,6 +14,7 @@
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.4",
     "express": "^4.21.2",

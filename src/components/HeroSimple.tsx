@@ -45,7 +45,9 @@ export const HeroSimple = ({ heroContent, isAdmin, onOpenAdmin }: HeroSimpleProp
         <div className="max-w-5xl mb-8">
           <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-bold tracking-tight text-white leading-[1.04] uppercase">
             {heroContent.headline} <br />
-            <span className="text-zinc-400 font-normal">{heroContent.headlineAccent}</span>
+            <span className={`text-zinc-400 font-normal ${heroContent.headlineAccentSize === 'small' ? 'text-2xl sm:text-3xl' : heroContent.headlineAccentSize === 'large' ? 'text-5xl sm:text-7xl' : 'text-3xl sm:text-5xl'}`}>
+              {heroContent.headlineAccent}
+            </span>
           </h1>
         </div>
 

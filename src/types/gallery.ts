@@ -32,6 +32,7 @@ export interface SiteContent {
     tagline: string;
     headline: string;
     headlineAccent: string;
+    headlineAccentSize?: 'small' | 'medium' | 'large';
     bio: string;
     showFullscreenBg: boolean;
     fullscreenBgUrl: string;

@@ -1728,6 +1728,15 @@ export const AdminModal = ({
                             onChange={(e) => setHeroForm({ ...heroForm, headlineAccent: e.target.value })}
                             className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
                           />
+                          <select
+                            value={heroForm.headlineAccentSize || 'medium'}
+                            onChange={(e) => setHeroForm({ ...heroForm, headlineAccentSize: e.target.value as 'small' | 'medium' | 'large' })}
+                            className="w-full mt-2 px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          >
+                            <option value="small">Small</option>
+                            <option value="medium">Medium</option>
+                            <option value="large">Large</option>
+                          </select>
                         </div>
                       </div>
 
