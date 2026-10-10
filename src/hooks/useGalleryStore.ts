@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { GalleryPhoto } from '../types/gallery';
+import { useState, useEffect } from 'react';
+import { GalleryPhoto, SiteContent, ServiceItem } from '../types/gallery';
 import { DEFAULT_PHOTOS } from '../data/defaultGallery';
+import { DEFAULT_SITE_CONTENT } from '../data/defaultSiteContent';
 import {
   hashAdminKey,
   verifyAdminKey,
@@ -10,6 +11,7 @@ import {
 } from '../utils/security';
 
 const STORAGE_KEY_PHOTOS = 'akash_portfolio_photos_v2';
+const STORAGE_KEY_SITE_CONTENT = 'akash_portfolio_site_content_v2';
 const STORAGE_KEY_KEY_HASH = 'akash_portfolio_key_hash_v2';
 const STORAGE_KEY_SESSION_TOKEN = 'akash_portfolio_session_token_v2';
 const STORAGE_KEY_SESSION_EXPIRY = 'akash_portfolio_session_expiry_v2';
@@ -29,6 +31,29 @@ export const useGalleryStore = () => {
       console.error('Error loading gallery photos', e);
     }
     return DEFAULT_PHOTOS;
+  });
+
+  // Full customizable site content state
+  const [siteContent, setSiteContent] = useState<SiteContent>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SITE_CONTENT);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.hero && parsed.about && parsed.contact) {
+          return {
+            ...DEFAULT_SITE_CONTENT,
+            ...parsed,
+            hero: { ...DEFAULT_SITE_CONTENT.hero, ...parsed.hero },
+            about: { ...DEFAULT_SITE_CONTENT.about, ...parsed.about },
+            contact: { ...DEFAULT_SITE_CONTENT.contact, ...parsed.contact },
+            layout: { ...DEFAULT_SITE_CONTENT.layout, ...parsed.layout }
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Error loading site content', e);
+    }
+    return DEFAULT_SITE_CONTENT;
   });
 
   // Stored password hash (initialized to hash of 'akash 1298')
@@ -81,6 +106,15 @@ export const useGalleryStore = () => {
     }
   }, [photos]);
 
+  // Sync site content to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SITE_CONTENT, JSON.stringify(siteContent));
+    } catch (e) {
+      console.error('Failed to save site content to localStorage', e);
+    }
+  }, [siteContent]);
+
   // Sync Lockout info
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FAILED_ATTEMPTS, failedAttempts.toString());
@@ -90,12 +124,80 @@ export const useGalleryStore = () => {
     localStorage.setItem(STORAGE_KEY_LOCKOUT_UNTIL, lockoutUntil.toString());
   }, [lockoutUntil]);
 
-  // CRUD Operations
+  // Update full site content
+  const updateSiteContent = (newContent: Partial<SiteContent>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      ...newContent
+    }));
+  };
+
+  // Update specific sections
+  const updateHeroContent = (newHero: Partial<SiteContent['hero']>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      hero: { ...prev.hero, ...newHero }
+    }));
+  };
+
+  const updateAboutContent = (newAbout: Partial<SiteContent['about']>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      about: { ...prev.about, ...newAbout }
+    }));
+  };
+
+  const updateContactContent = (newContact: Partial<SiteContent['contact']>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      contact: { ...prev.contact, ...newContact }
+    }));
+  };
+
+  const updateLayoutContent = (newLayout: Partial<SiteContent['layout']>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      layout: { ...prev.layout, ...newLayout }
+    }));
+  };
+
+  // Services CRUD
+  const addService = (service: Omit<ServiceItem, 'id'>) => {
+    if (!isAdmin) return;
+    const newItem: ServiceItem = {
+      ...service,
+      id: `srv-${Date.now()}`
+    };
+    setSiteContent((prev) => ({
+      ...prev,
+      services: [...prev.services, newItem]
+    }));
+  };
+
+  const updateService = (id: string, updated: Partial<ServiceItem>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      services: prev.services.map((s) => (s.id === id ? { ...s, ...updated } : s))
+    }));
+  };
+
+  const deleteService = (id: string) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      services: prev.services.filter((s) => s.id !== id)
+    }));
+  };
+
+  // Photo CRUD Operations
   const addPhoto = (photo: Omit<GalleryPhoto, 'id'>) => {
-    if (!isAdmin) {
-      console.warn('Unauthorized: Admin access required to add photo');
-      return null;
-    }
+    if (!isAdmin) return null;
     const newPhoto: GalleryPhoto = {
       ...photo,
       id: `photo-${Date.now()}`
@@ -105,20 +207,14 @@ export const useGalleryStore = () => {
   };
 
   const updatePhoto = (id: string, updatedFields: Partial<GalleryPhoto>) => {
-    if (!isAdmin) {
-      console.warn('Unauthorized: Admin access required to update photo');
-      return;
-    }
+    if (!isAdmin) return;
     setPhotos((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p))
     );
   };
 
   const deletePhoto = (id: string) => {
-    if (!isAdmin) {
-      console.warn('Unauthorized: Admin access required to delete photo');
-      return;
-    }
+    if (!isAdmin) return;
     setPhotos((prev) => prev.filter((p) => p.id !== id));
   };
 
@@ -127,24 +223,25 @@ export const useGalleryStore = () => {
     setPhotos(DEFAULT_PHOTOS);
   };
 
+  const resetSiteContentToDefaults = () => {
+    if (!isAdmin) return;
+    setSiteContent(DEFAULT_SITE_CONTENT);
+  };
+
   // Secure Auth Login with Rate Limiting & Hashing
   const login = async (
     key: string
   ): Promise<{ success: boolean; message: string; remainingAttempts?: number; lockedMinutes?: number }> => {
     const now = Date.now();
 
-    // Check if currently locked out
     if (lockoutUntil > now) {
       const secondsRemaining = Math.ceil((lockoutUntil - now) / 1000);
-      const minutesRemaining = Math.ceil(secondsRemaining / 60);
       return {
         success: false,
-        message: `Security Lockout Active. Too many failed attempts. Please wait ${secondsRemaining}s before trying again.`,
-        lockedMinutes: minutesRemaining
+        message: `Security Lockout Active. Please wait ${secondsRemaining}s before trying again.`
       };
     }
 
-    // Ensure we have current stored hash
     let currentHash = adminKeyHash;
     if (!currentHash) {
       currentHash = localStorage.getItem(STORAGE_KEY_KEY_HASH) || '';
@@ -155,15 +252,12 @@ export const useGalleryStore = () => {
       }
     }
 
-    // Cryptographic verification
     const isValid = await verifyAdminKey(key, currentHash);
 
     if (isValid) {
-      // Reset failed attempts
       setFailedAttempts(0);
       setLockoutUntil(0);
 
-      // Create secure session
       const token = generateSecureToken();
       const expiry = Date.now() + SECURITY_CONFIG.SESSION_TIMEOUT_MS;
       sessionStorage.setItem(STORAGE_KEY_SESSION_TOKEN, token);
@@ -172,7 +266,6 @@ export const useGalleryStore = () => {
 
       return { success: true, message: 'Authentication successful.' };
     } else {
-      // Increment failed attempts
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
 
@@ -181,17 +274,14 @@ export const useGalleryStore = () => {
         setLockoutUntil(lockoutTime);
         return {
           success: false,
-          message: 'Security Alert: Maximum failed attempts reached. System locked for 5 minutes.',
-          remainingAttempts: 0,
-          lockedMinutes: 5
+          message: 'Security Alert: Maximum failed attempts reached. System locked for 5 minutes.'
         };
       }
 
       const remaining = SECURITY_CONFIG.MAX_FAILED_ATTEMPTS - newAttempts;
       return {
         success: false,
-        message: `Incorrect Admin Key. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before security lockout.`,
-        remainingAttempts: remaining
+        message: `Incorrect Admin Key. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before lockout.`
       };
     }
   };
@@ -209,15 +299,13 @@ export const useGalleryStore = () => {
     const normalizedInput = inputEmail.trim().toLowerCase();
     const authorizedEmail = SECURITY_CONFIG.REGISTERED_EMAIL.toLowerCase();
 
-    // Strict validation
     if (normalizedInput !== authorizedEmail) {
       return {
         success: false,
-        message: 'Security Verification Failed: This email is not authorized for administrator key recovery.'
+        message: 'Security Verification Failed: Unauthorized recovery email address.'
       };
     }
 
-    // Generate secure 6-digit cryptographic OTP valid for 10 minutes
     const secureCode = generateSecureOTP();
     const expiresAt = Date.now() + 10 * 60 * 1000;
 
@@ -234,51 +322,35 @@ export const useGalleryStore = () => {
     };
   };
 
-  // Verify Code and Set New Admin Key
   const verifyAndResetKey = async (
     code: string,
     newKey: string
   ): Promise<{ success: boolean; message: string }> => {
     if (!pendingResetSession) {
-      return {
-        success: false,
-        message: 'No active password recovery session found. Please request a new code.'
-      };
+      return { success: false, message: 'No active recovery session found.' };
     }
 
     if (Date.now() > pendingResetSession.expiresAt) {
       setPendingResetSession(null);
-      return {
-        success: false,
-        message: 'The authorization code has expired. Please request a new one.'
-      };
+      return { success: false, message: 'The authorization code has expired.' };
     }
 
     if (code.trim() !== pendingResetSession.otp.trim()) {
-      return {
-        success: false,
-        message: 'Invalid authorization code. Please verify the code sent to your email.'
-      };
+      return { success: false, message: 'Invalid authorization code.' };
     }
 
     if (!newKey || newKey.trim().length < 4) {
-      return {
-        success: false,
-        message: 'New Admin Key must be at least 4 characters long.'
-      };
+      return { success: false, message: 'New Admin Key must be at least 4 characters long.' };
     }
 
-    // Cryptographically hash new key
     const newHash = await hashAdminKey(newKey);
     localStorage.setItem(STORAGE_KEY_KEY_HASH, newHash);
     setAdminKeyHash(newHash);
 
-    // Clear reset session and reset lockout
     setPendingResetSession(null);
     setFailedAttempts(0);
     setLockoutUntil(0);
 
-    // Automatically log in
     const token = generateSecureToken();
     const expiry = Date.now() + SECURITY_CONFIG.SESSION_TIMEOUT_MS;
     sessionStorage.setItem(STORAGE_KEY_SESSION_TOKEN, token);
@@ -293,6 +365,7 @@ export const useGalleryStore = () => {
 
   return {
     photos,
+    siteContent,
     isAdmin,
     adminEmail: SECURITY_CONFIG.REGISTERED_EMAIL,
     failedAttempts,
@@ -301,10 +374,18 @@ export const useGalleryStore = () => {
     updatePhoto,
     deletePhoto,
     resetToDefaultPhotos,
+    updateSiteContent,
+    updateHeroContent,
+    updateAboutContent,
+    updateContactContent,
+    updateLayoutContent,
+    addService,
+    updateService,
+    deleteService,
+    resetSiteContentToDefaults,
     login,
     logout,
     sendEmailResetCode,
-    verifyAndResetKey,
-    pendingResetSession
+    verifyAndResetKey
   };
 };

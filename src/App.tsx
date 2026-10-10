@@ -15,6 +15,7 @@ import { GalleryPhoto } from './types/gallery';
 export default function App() {
   const {
     photos,
+    siteContent,
     adminEmail,
     isAdmin,
     failedAttempts,
@@ -23,6 +24,14 @@ export default function App() {
     updatePhoto,
     deletePhoto,
     resetToDefaultPhotos,
+    updateHeroContent,
+    updateAboutContent,
+    updateContactContent,
+    updateLayoutContent,
+    addService,
+    updateService,
+    deleteService,
+    resetSiteContentToDefaults,
     login,
     logout,
     sendEmailResetCode,
@@ -30,8 +39,14 @@ export default function App() {
   } = useGalleryStore();
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminModalInitialTab, setAdminModalInitialTab] = useState<'add' | 'manage' | 'content' | 'layout' | 'settings'>('add');
   const [editingPhoto, setEditingPhoto] = useState<GalleryPhoto | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const handleOpenAdminWithTab = (tab: 'add' | 'manage' | 'content' | 'layout' | 'settings' = 'add') => {
+    setAdminModalInitialTab(tab);
+    setIsAdminModalOpen(true);
+  };
 
   // Selected photo for lightbox
   const currentLightboxPhoto =
@@ -54,35 +69,51 @@ export default function App() {
       {/* Top Bar Navigation */}
       <Navbar
         isAdmin={isAdmin}
-        onOpenAdmin={() => setIsAdminModalOpen(true)}
+        onOpenAdmin={() => handleOpenAdminWithTab('add')}
       />
 
       <main>
-        {/* Hostinger-Style Portfolio Hero Section */}
+        {/* Hostinger-Style Portfolio Hero Section (with optional full-screen background) */}
         <HeroSimple
+          heroContent={siteContent.hero}
           isAdmin={isAdmin}
-          onOpenAdmin={() => setIsAdminModalOpen(true)}
-          photoCount={photos.length}
+          onOpenAdmin={(tab) => handleOpenAdminWithTab(tab || 'content')}
         />
 
-        {/* Minimal Black Photo Gallery Grid with Layout Switcher */}
+        {/* Minimal Black Photo Gallery Grid */}
         <GalleryGrid
           photos={photos}
           isAdmin={isAdmin}
           onSelectPhoto={(photo, index) => setLightboxIndex(index)}
           onEditPhoto={(photo) => setEditingPhoto(photo)}
           onDeletePhoto={(id) => deletePhoto(id)}
-          onOpenAddModal={() => setIsAdminModalOpen(true)}
+          onOpenAddModal={() => handleOpenAdminWithTab('add')}
         />
 
-        {/* Areas of Expertise / Services Strip */}
-        <ServicesSection />
+        {/* Areas of Expertise / Services Strip (Configurable via Admin) */}
+        {siteContent.layout.showServices && (
+          <ServicesSection
+            services={siteContent.services}
+            isAdmin={isAdmin}
+            onOpenAdmin={() => handleOpenAdminWithTab('content')}
+          />
+        )}
 
-        {/* About Section with Studio Portrait */}
-        <AboutSimple />
+        {/* About Section with Studio Portrait & Biography (Configurable via Admin) */}
+        {siteContent.layout.showAbout && (
+          <AboutSimple
+            aboutContent={siteContent.about}
+            isAdmin={isAdmin}
+            onOpenAdmin={() => handleOpenAdminWithTab('content')}
+          />
+        )}
 
-        {/* Contact Section */}
-        <ContactSimple />
+        {/* Contact Section with Editable Availability */}
+        <ContactSimple
+          contactContent={siteContent.contact}
+          isAdmin={isAdmin}
+          onOpenAdmin={() => handleOpenAdminWithTab('content')}
+        />
       </main>
 
       {/* Footer */}
@@ -100,15 +131,17 @@ export default function App() {
         />
       )}
 
-      {/* Admin Panel Modal (Secure Login, Strict Email Reset, Photo Updates) */}
+      {/* Complete Admin Panel Suite */}
       <AdminModal
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
         isAdmin={isAdmin}
         adminEmail={adminEmail}
         photos={photos}
+        siteContent={siteContent}
         failedAttempts={failedAttempts}
         lockoutUntil={lockoutUntil}
+        initialTab={adminModalInitialTab}
         onLogin={login}
         onLogout={logout}
         onSendResetCode={sendEmailResetCode}
@@ -120,6 +153,14 @@ export default function App() {
           setEditingPhoto(photo);
         }}
         onResetToDefault={resetToDefaultPhotos}
+        onUpdateHero={updateHeroContent}
+        onUpdateAbout={updateAboutContent}
+        onUpdateContact={updateContactContent}
+        onUpdateLayout={updateLayoutContent}
+        onAddService={addService}
+        onUpdateService={updateService}
+        onDeleteService={deleteService}
+        onResetSiteContent={resetSiteContentToDefaults}
       />
 
       {/* Direct Photo Edit Modal */}

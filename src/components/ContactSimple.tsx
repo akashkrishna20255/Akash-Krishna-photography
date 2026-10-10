@@ -1,7 +1,14 @@
 import { useState } from 'react';
-import { Mail, Copy, Check, Send, CheckCircle2, MapPin, ArrowUpRight } from 'lucide-react';
+import { Mail, Copy, Check, Send, CheckCircle2, MapPin, ArrowUpRight, Edit2 } from 'lucide-react';
+import { SiteContent } from '../types/gallery';
 
-export const ContactSimple = () => {
+interface ContactSimpleProps {
+  contactContent: SiteContent['contact'];
+  isAdmin: boolean;
+  onOpenAdmin: (tab: 'content') => void;
+}
+
+export const ContactSimple = ({ contactContent, isAdmin, onOpenAdmin }: ContactSimpleProps) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [service, setService] = useState('Brand Identity');
@@ -10,7 +17,7 @@ export const ContactSimple = () => {
   const [isSent, setIsSent] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const contactEmail = 'akashkrishna67@gmail.com';
+  const contactEmail = contactContent.email || 'akashkrishna67@gmail.com';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(contactEmail);
@@ -39,14 +46,26 @@ export const ContactSimple = () => {
           {/* Left Column: Direct Inquiries */}
           <div className="lg:col-span-5 flex flex-col justify-between">
             <div>
-              <div className="text-xs uppercase tracking-widest text-zinc-500 font-mono mb-2">
-                Initiate Project
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs uppercase tracking-widest text-zinc-500 font-mono">
+                  {contactContent.badge || 'INITIATE PROJECT'}
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => onOpenAdmin('content')}
+                    className="text-xs font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>Edit Contact</span>
+                  </button>
+                )}
               </div>
+
               <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white mb-6 uppercase">
-                Let's Work Together.
+                {contactContent.headline}
               </h2>
               <p className="text-sm sm:text-base text-zinc-400 font-light mb-8 leading-relaxed">
-                Have a brand identity to establish, a film edit that needs precise tempo, or an editorial publication? Let's discuss your scope.
+                {contactContent.subtext}
               </p>
 
               {/* Direct Email Card */}
@@ -72,11 +91,11 @@ export const ContactSimple = () => {
                 </div>
               </div>
 
-              {/* Socials & Location */}
+              {/* Editable Availability Status & Location */}
               <div className="space-y-4 pt-2">
-                <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                  <MapPin className="w-4 h-4 text-zinc-500" />
-                  <span>Available Globally (Remote & On-Site)</span>
+                <div className="flex items-center gap-2 text-xs font-mono text-zinc-300">
+                  <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>{contactContent.availabilityText}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-3 pt-2">

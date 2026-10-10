@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GalleryPhoto, CategoryType } from '../types/gallery';
+import { GalleryPhoto, CategoryType, SiteContent, ServiceItem } from '../types/gallery';
 import {
   X,
   Lock,
@@ -11,13 +11,18 @@ import {
   RotateCcw,
   Upload,
   CheckCircle2,
-  AlertCircle,
   LogOut,
   ShieldCheck,
   Eye,
   EyeOff,
   ShieldAlert,
-  Clock
+  Clock,
+  Type,
+  Layout,
+  Image as ImageIcon,
+  User,
+  Sliders,
+  Check
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -26,8 +31,10 @@ interface AdminModalProps {
   isAdmin: boolean;
   adminEmail: string;
   photos: GalleryPhoto[];
+  siteContent: SiteContent;
   failedAttempts: number;
   lockoutUntil: number;
+  initialTab?: 'add' | 'manage' | 'content' | 'layout' | 'settings';
   onLogin: (key: string) => Promise<{ success: boolean; message: string; remainingAttempts?: number; lockedMinutes?: number }>;
   onLogout: () => void;
   onSendResetCode: (email: string) => { success: boolean; message: string; code?: string };
@@ -36,6 +43,14 @@ interface AdminModalProps {
   onDeletePhoto: (id: string) => void;
   onEditPhoto: (photo: GalleryPhoto) => void;
   onResetToDefault: () => void;
+  onUpdateHero: (hero: Partial<SiteContent['hero']>) => void;
+  onUpdateAbout: (about: Partial<SiteContent['about']>) => void;
+  onUpdateContact: (contact: Partial<SiteContent['contact']>) => void;
+  onUpdateLayout: (layout: Partial<SiteContent['layout']>) => void;
+  onAddService: (service: Omit<ServiceItem, 'id'>) => void;
+  onUpdateService: (id: string, updated: Partial<ServiceItem>) => void;
+  onDeleteService: (id: string) => void;
+  onResetSiteContent: () => void;
 }
 
 const CATEGORIES: CategoryType[] = [
@@ -51,8 +66,10 @@ export const AdminModal = ({
   isAdmin,
   adminEmail,
   photos,
+  siteContent,
   failedAttempts,
   lockoutUntil,
+  initialTab = 'add',
   onLogin,
   onLogout,
   onSendResetCode,
@@ -60,20 +77,28 @@ export const AdminModal = ({
   onAddPhoto,
   onDeletePhoto,
   onEditPhoto,
-  onResetToDefault
+  onResetToDefault,
+  onUpdateHero,
+  onUpdateAbout,
+  onUpdateContact,
+  onUpdateLayout,
+  onAddService,
+  onUpdateService,
+  onDeleteService,
+  onResetSiteContent
 }: AdminModalProps) => {
   if (!isOpen) return null;
 
   // View state: 'login' | 'request-reset' | 'enter-new-key'
   const [authView, setAuthView] = useState<'login' | 'request-reset' | 'enter-new-key'>('login');
-  const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'settings'>('add');
+  const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'content' | 'layout' | 'settings'>(initialTab);
+  const [contentSubTab, setContentSubTab] = useState<'hero' | 'about' | 'services' | 'contact'>('hero');
 
   // Login inputs
   const [inputKey, setInputKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [loginSuccess, setLoginSuccess] = useState(false);
 
   // Lockout countdown timer
   const [secondsRemaining, setSecondsRemaining] = useState(0);
@@ -110,9 +135,25 @@ export const AdminModal = ({
   const [newDescription, setNewDescription] = useState('');
   const [addSuccess, setAddSuccess] = useState(false);
 
-  // Settings inputs
-  const [changeKeyInput, setChangeKeyInput] = useState('');
-  const [settingsMsg, setSettingsMsg] = useState('');
+  // Editable Form States for Site Content
+  const [heroForm, setHeroForm] = useState({ ...siteContent.hero });
+  const [aboutForm, setAboutForm] = useState({ ...siteContent.about });
+  const [contactForm, setContactForm] = useState({ ...siteContent.contact });
+  const [layoutForm, setLayoutForm] = useState({ ...siteContent.layout });
+  const [contentSavedMsg, setContentSavedMsg] = useState('');
+
+  // New Service inputs
+  const [newSrvNum, setNewSrvNum] = useState('05');
+  const [newSrvTitle, setNewSrvTitle] = useState('');
+  const [newSrvDesc, setNewSrvDesc] = useState('');
+
+  // Sync state if siteContent changes
+  useEffect(() => {
+    setHeroForm({ ...siteContent.hero });
+    setAboutForm({ ...siteContent.about });
+    setContactForm({ ...siteContent.contact });
+    setLayoutForm({ ...siteContent.layout });
+  }, [siteContent]);
 
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -123,13 +164,12 @@ export const AdminModal = ({
     try {
       const res = await onLogin(inputKey);
       if (res.success) {
-        setLoginSuccess(true);
         setInputKey('');
       } else {
         setLoginError(res.message);
       }
     } catch (err) {
-      setLoginError('Authentication error occurred. Please try again.');
+      setLoginError('Authentication error. Please try again.');
     } finally {
       setIsAuthenticating(false);
     }
@@ -156,12 +196,12 @@ export const AdminModal = ({
     setResetStatus(null);
 
     if (newKey !== confirmKey) {
-      setResetStatus({ type: 'error', text: 'Passwords do not match. Please re-enter.' });
+      setResetStatus({ type: 'error', text: 'Passwords do not match.' });
       return;
     }
 
     if (newKey.length < 4) {
-      setResetStatus({ type: 'error', text: 'Admin key must be at least 4 characters long.' });
+      setResetStatus({ type: 'error', text: 'Admin key must be at least 4 characters.' });
       return;
     }
 
@@ -179,7 +219,7 @@ export const AdminModal = ({
         setResetStatus({ type: 'error', text: result.message });
       }
     } catch (err) {
-      setResetStatus({ type: 'error', text: 'Failed to reset key. Please try again.' });
+      setResetStatus({ type: 'error', text: 'Failed to reset key.' });
     } finally {
       setIsResetting(false);
     }
@@ -193,6 +233,34 @@ export const AdminModal = ({
     reader.onload = (event) => {
       if (typeof event.target?.result === 'string') {
         setNewImageUrl(event.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle Fullscreen Background Image Upload
+  const handleBgFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === 'string') {
+        setHeroForm((prev) => ({ ...prev, fullscreenBgUrl: result }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle Portrait Image Upload for About Section
+  const handlePortraitFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result === 'string') {
+        setAboutForm((prev) => ({ ...prev, portraitUrl: result }));
       }
     };
     reader.readAsDataURL(file);
@@ -219,6 +287,56 @@ export const AdminModal = ({
     setTimeout(() => setAddSuccess(false), 3000);
   };
 
+  // Save Hero Edits
+  const handleSaveHero = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateHero(heroForm);
+    setContentSavedMsg('Hero section & top background settings saved!');
+    setTimeout(() => setContentSavedMsg(''), 3000);
+  };
+
+  // Save About Edits
+  const handleSaveAbout = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateAbout(aboutForm);
+    setContentSavedMsg('Biography & profile details saved!');
+    setTimeout(() => setContentSavedMsg(''), 3000);
+  };
+
+  // Save Contact Edits
+  const handleSaveContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateContact(contactForm);
+    setContentSavedMsg('Contact & global availability details saved!');
+    setTimeout(() => setContentSavedMsg(''), 3000);
+  };
+
+  // Save Layout Edits
+  const handleSaveLayout = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateLayout(layoutForm);
+    setContentSavedMsg('Layout & section visibility preferences saved!');
+    setTimeout(() => setContentSavedMsg(''), 3000);
+  };
+
+  // Add Service Item
+  const handleAddServiceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSrvTitle.trim() || !newSrvDesc.trim()) return;
+
+    onAddService({
+      number: newSrvNum.trim(),
+      title: newSrvTitle.trim(),
+      description: newSrvDesc.trim()
+    });
+
+    setNewSrvTitle('');
+    setNewSrvDesc('');
+    setNewSrvNum(`0${siteContent.services.length + 2}`);
+    setContentSavedMsg('New service capability added!');
+    setTimeout(() => setContentSavedMsg(''), 3000);
+  };
+
   const isLockedOut = secondsRemaining > 0;
 
   return (
@@ -229,7 +347,7 @@ export const AdminModal = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl text-zinc-100 my-auto animate-in fade-in zoom-in-95"
+        className="relative w-full max-w-3xl bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl text-zinc-100 my-auto animate-in fade-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header */}
@@ -237,7 +355,7 @@ export const AdminModal = ({
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4 text-white" />
             <h2 className="text-sm font-bold tracking-wider uppercase font-mono text-white">
-              {isAdmin ? 'Admin Management Center' : 'Secure Admin Authentication'}
+              {isAdmin ? 'Akash Krishna — Admin Control Suite' : 'Secure Admin Portal'}
             </h2>
           </div>
 
@@ -261,25 +379,23 @@ export const AdminModal = ({
                     <Lock className="w-5 h-5" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-1 uppercase tracking-tight">
-                    Admin Portal
+                    Admin Security Access
                   </h3>
                   <p className="text-xs text-zinc-400">
-                    Protected by SHA-256 cryptographic security and brute-force mitigation.
+                    Enter your security key to access gallery uploads, full site text editing, and layouts.
                   </p>
                 </div>
 
-                {/* Lockout Banner */}
                 {isLockedOut && (
                   <div className="mb-5 p-4 rounded-xl bg-red-950/70 border border-red-800 text-red-200 text-xs flex items-center gap-3">
                     <Clock className="w-5 h-5 shrink-0 text-red-400 animate-spin" />
                     <div>
                       <strong className="block text-white font-semibold">Security Lockout Active</strong>
-                      <span>Maximum attempts exceeded. Please wait {secondsRemaining} seconds.</span>
+                      <span>Maximum attempts exceeded. Please wait {secondsRemaining}s.</span>
                     </div>
                   </div>
                 )}
 
-                {/* Login Error Notification */}
                 {loginError && !isLockedOut && (
                   <div className="mb-4 p-3.5 rounded-lg bg-red-950/60 border border-red-800/80 text-red-200 text-xs flex items-center gap-2.5">
                     <ShieldAlert className="w-4 h-4 shrink-0 text-red-400" />
@@ -290,7 +406,7 @@ export const AdminModal = ({
                 <form onSubmit={handleLoginSubmit} className="space-y-4 max-w-md mx-auto">
                   <div>
                     <label className="block text-xs font-mono uppercase text-zinc-400 mb-2">
-                      Admin Security Key
+                      Admin Security Code
                     </label>
                     <div className="relative">
                       <input
@@ -298,7 +414,7 @@ export const AdminModal = ({
                         value={inputKey}
                         disabled={isLockedOut || isAuthenticating}
                         onChange={(e) => setInputKey(e.target.value)}
-                        placeholder="Enter your security code"
+                        placeholder="Enter admin code"
                         required
                         className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-white font-mono pr-10 disabled:opacity-50"
                       />
@@ -315,16 +431,11 @@ export const AdminModal = ({
                   <button
                     type="submit"
                     disabled={isLockedOut || isAuthenticating}
-                    className="w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {isAuthenticating ? (
-                      <span>Verifying Cryptographic Credentials...</span>
-                    ) : (
-                      <span>Authenticate Access</span>
-                    )}
+                    {isAuthenticating ? 'Verifying...' : 'Unlock Admin Panel'}
                   </button>
 
-                  {/* Reset Link - Strictly to User's Email */}
                   <div className="pt-3 text-center">
                     <button
                       type="button"
@@ -382,7 +493,7 @@ export const AdminModal = ({
                       className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white focus:outline-none focus:border-white font-mono"
                     />
                     <p className="text-[11px] text-zinc-500 mt-1 font-mono">
-                      * Must match the Google AI Studio account email.
+                      * Must match your Google AI Studio account email.
                     </p>
                   </div>
 
@@ -421,7 +532,6 @@ export const AdminModal = ({
                   </p>
                 </div>
 
-                {/* Security Notification Banner with Dispatched Code in Preview Environment */}
                 {dispatchedCode && (
                   <div className="mb-4 p-3.5 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-between text-xs font-mono">
                     <div>
@@ -518,56 +628,89 @@ export const AdminModal = ({
             )}
           </div>
         ) : (
-          /* LOGGED IN ADMIN PANEL */
+          /* LOGGED IN ADMIN SUITE */
           <div>
-            {/* Nav Tabs */}
-            <div className="flex border-b border-zinc-800 bg-zinc-950 px-6 gap-2 text-xs font-mono">
+            {/* Top Navigation Bar with Tabs */}
+            <div className="flex border-b border-zinc-800 bg-zinc-950 px-6 gap-2 text-xs font-mono overflow-x-auto">
               <button
                 onClick={() => setActiveTab('add')}
-                className={`py-3 px-4 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={`py-3 px-3.5 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'add'
                     ? 'border-white text-white'
                     : 'border-transparent text-zinc-400 hover:text-white'
                 }`}
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Photo</span>
+                <span>Add Work</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('manage')}
-                className={`py-3 px-4 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={`py-3 px-3.5 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'manage'
                     ? 'border-white text-white'
                     : 'border-transparent text-zinc-400 hover:text-white'
                 }`}
               >
-                <span>Manage Gallery ({photos.length})</span>
+                <span>Gallery ({photos.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('content')}
+                className={`py-3 px-3.5 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'content'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Type className="w-3.5 h-3.5" />
+                <span>Text & Content Editor</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('layout')}
+                className={`py-3 px-3.5 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'layout'
+                    ? 'border-white text-white'
+                    : 'border-transparent text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Layout className="w-3.5 h-3.5" />
+                <span>Layout & Background</span>
               </button>
 
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`py-3 px-4 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={`py-3 px-3.5 border-b-2 font-semibold transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'settings'
                     ? 'border-white text-white'
                     : 'border-transparent text-zinc-400 hover:text-white'
                 }`}
               >
+                <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Security</span>
               </button>
 
               <button
                 onClick={onLogout}
-                className="ml-auto py-3 px-3 text-red-400 hover:text-red-300 flex items-center gap-1 cursor-pointer"
+                className="ml-auto py-3 px-3 text-red-400 hover:text-red-300 flex items-center gap-1 cursor-pointer whitespace-nowrap"
                 title="Log Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Exit Admin</span>
+                <span>Exit</span>
               </button>
             </div>
 
-            {/* TAB CONTENT */}
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            {/* Notification Bar */}
+            {contentSavedMsg && (
+              <div className="bg-emerald-950/80 border-b border-emerald-800 text-emerald-200 text-xs px-6 py-2.5 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{contentSavedMsg}</span>
+              </div>
+            )}
+
+            {/* TAB CONTENT CONTAINER */}
+            <div className="p-6 max-h-[72vh] overflow-y-auto">
               {/* TAB 1: ADD PHOTO */}
               {activeTab === 'add' && (
                 <div>
@@ -576,7 +719,7 @@ export const AdminModal = ({
                       Upload New Work to Gallery
                     </h3>
                     <p className="text-xs text-zinc-400">
-                      Select a file from your device or paste an image URL. Live changes appear in the gallery immediately.
+                      Select an image file from your computer or paste an image link.
                     </p>
                   </div>
 
@@ -588,7 +731,6 @@ export const AdminModal = ({
                   )}
 
                   <form onSubmit={handleAddPhotoSubmit} className="space-y-4">
-                    {/* Image selector */}
                     <div>
                       <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
                         Image File or URL <span className="text-white">*</span>
@@ -633,7 +775,6 @@ export const AdminModal = ({
                       </div>
                     </div>
 
-                    {/* Title */}
                     <div>
                       <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
                         Photo / Project Title <span className="text-white">*</span>
@@ -648,7 +789,6 @@ export const AdminModal = ({
                       />
                     </div>
 
-                    {/* Category & Year */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
@@ -681,7 +821,6 @@ export const AdminModal = ({
                       </div>
                     </div>
 
-                    {/* Description */}
                     <div>
                       <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
                         Caption / Description
@@ -711,8 +850,8 @@ export const AdminModal = ({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
                     <div>
-                      <h3 className="text-base font-bold text-white uppercase">Active Gallery Archive</h3>
-                      <p className="text-xs text-zinc-400">Click Edit to modify or Delete to remove from gallery.</p>
+                      <h3 className="text-base font-bold text-white uppercase">Gallery Archive</h3>
+                      <p className="text-xs text-zinc-400">Modify titles or delete items from the live gallery.</p>
                     </div>
 
                     <button
@@ -773,7 +912,554 @@ export const AdminModal = ({
                 </div>
               )}
 
-              {/* TAB 3: SECURITY & EMAIL */}
+              {/* TAB 3: FULL TEXT & CONTENT EDITOR */}
+              {activeTab === 'content' && (
+                <div className="space-y-6">
+                  {/* Sub-tab selection */}
+                  <div className="flex flex-wrap gap-2 pb-4 border-b border-zinc-800">
+                    {[
+                      { id: 'hero', label: 'Hero Texts' },
+                      { id: 'about', label: 'Biography & Profile' },
+                      { id: 'services', label: 'Services & Capabilities' },
+                      { id: 'contact', label: 'Contact & Availability' }
+                    ].map((st) => (
+                      <button
+                        key={st.id}
+                        onClick={() => setContentSubTab(st.id as any)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer ${
+                          contentSubTab === st.id
+                            ? 'bg-white text-black font-semibold'
+                            : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* SUBTAB 1: HERO TEXTS */}
+                  {contentSubTab === 'hero' && (
+                    <form onSubmit={handleSaveHero} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                            Main Headline Line 1
+                          </label>
+                          <input
+                            type="text"
+                            value={heroForm.headline}
+                            onChange={(e) => setHeroForm({ ...heroForm, headline: e.target.value })}
+                            className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                            Headline Accent Line 2
+                          </label>
+                          <input
+                            type="text"
+                            value={heroForm.headlineAccent}
+                            onChange={(e) => setHeroForm({ ...heroForm, headlineAccent: e.target.value })}
+                            className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Hero Introduction / Bio Text
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={heroForm.bio}
+                          onChange={(e) => setHeroForm({ ...heroForm, bio: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white leading-relaxed"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Save Hero Content</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 2: BIOGRAPHY & PROFILE (USER REQUIREMENT #3) */}
+                  {contentSubTab === 'about' && (
+                    <form onSubmit={handleSaveAbout} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                            Section Badge Label
+                          </label>
+                          <input
+                            type="text"
+                            value={aboutForm.badge}
+                            onChange={(e) => setAboutForm({ ...aboutForm, badge: e.target.value })}
+                            className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                            About Section Heading
+                          </label>
+                          <input
+                            type="text"
+                            value={aboutForm.title}
+                            onChange={(e) => setAboutForm({ ...aboutForm, title: e.target.value })}
+                            className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Portrait Image */}
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Portrait / Profile Image (URL or Upload)
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="text"
+                            value={aboutForm.portraitUrl}
+                            onChange={(e) => setAboutForm({ ...aboutForm, portraitUrl: e.target.value })}
+                            className="flex-grow px-3.5 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white font-mono"
+                          />
+                          <label className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg text-xs text-zinc-300 cursor-pointer flex items-center gap-1.5 shrink-0">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload File</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handlePortraitFileUpload}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Bio Paragraphs */}
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Biography Paragraph 1
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={aboutForm.bio1}
+                          onChange={(e) => setAboutForm({ ...aboutForm, bio1: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white leading-relaxed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Biography Paragraph 2
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={aboutForm.bio2}
+                          onChange={(e) => setAboutForm({ ...aboutForm, bio2: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white leading-relaxed"
+                        />
+                      </div>
+
+                      {/* Stats */}
+                      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
+                        <div>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 1 (e.g. 08+)</label>
+                          <input
+                            type="text"
+                            value={aboutForm.stat1Value}
+                            onChange={(e) => setAboutForm({ ...aboutForm, stat1Value: e.target.value })}
+                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                          <input
+                            type="text"
+                            value={aboutForm.stat1Label}
+                            onChange={(e) => setAboutForm({ ...aboutForm, stat1Label: e.target.value })}
+                            className="w-full px-3 py-1.5 text-[11px] bg-zinc-900 border border-zinc-800 rounded text-zinc-400 mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 2 (e.g. 50+)</label>
+                          <input
+                            type="text"
+                            value={aboutForm.stat2Value}
+                            onChange={(e) => setAboutForm({ ...aboutForm, stat2Value: e.target.value })}
+                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                          <input
+                            type="text"
+                            value={aboutForm.stat2Label}
+                            onChange={(e) => setAboutForm({ ...aboutForm, stat2Label: e.target.value })}
+                            className="w-full px-3 py-1.5 text-[11px] bg-zinc-900 border border-zinc-800 rounded text-zinc-400 mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 3 (e.g. 100%)</label>
+                          <input
+                            type="text"
+                            value={aboutForm.stat3Value}
+                            onChange={(e) => setAboutForm({ ...aboutForm, stat3Value: e.target.value })}
+                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                          <input
+                            type="text"
+                            value={aboutForm.stat3Label}
+                            onChange={(e) => setAboutForm({ ...aboutForm, stat3Label: e.target.value })}
+                            className="w-full px-3 py-1.5 text-[11px] bg-zinc-900 border border-zinc-800 rounded text-zinc-400 mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Toolkits */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                        <div>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Brand Skills</label>
+                          <input
+                            type="text"
+                            value={aboutForm.skillBrand}
+                            onChange={(e) => setAboutForm({ ...aboutForm, skillBrand: e.target.value })}
+                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Post Skills</label>
+                          <input
+                            type="text"
+                            value={aboutForm.skillPost}
+                            onChange={(e) => setAboutForm({ ...aboutForm, skillPost: e.target.value })}
+                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">3D / Motion Skills</label>
+                          <input
+                            type="text"
+                            value={aboutForm.skillMotion}
+                            onChange={(e) => setAboutForm({ ...aboutForm, skillMotion: e.target.value })}
+                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Save Biography Details</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 3: SERVICES & CAPABILITIES */}
+                  {contentSubTab === 'services' && (
+                    <div className="space-y-6">
+                      {/* Current Services List */}
+                      <div>
+                        <h4 className="text-xs font-mono uppercase text-zinc-400 mb-3">
+                          Existing Capabilities ({siteContent.services.length})
+                        </h4>
+                        <div className="space-y-3">
+                          {siteContent.services.map((srv) => (
+                            <div
+                              key={srv.id}
+                              className="p-3.5 rounded-lg bg-zinc-900/60 border border-zinc-800 flex items-start justify-between gap-4"
+                            >
+                              <div>
+                                <span className="font-mono text-xs text-amber-400 mr-2">{srv.number} /</span>
+                                <strong className="text-sm text-white">{srv.title}</strong>
+                                <p className="text-xs text-zinc-400 mt-1">{srv.description}</p>
+                              </div>
+
+                              <button
+                                onClick={() => onDeleteService(srv.id)}
+                                className="p-1.5 text-zinc-400 hover:text-red-400 shrink-0 cursor-pointer"
+                                title="Remove capability"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Add New Service Form */}
+                      <form onSubmit={handleAddServiceSubmit} className="pt-4 border-t border-zinc-800 space-y-3">
+                        <h4 className="text-xs font-mono uppercase text-zinc-400">
+                          + Add New Service Capability
+                        </h4>
+                        <div className="grid grid-cols-4 gap-3">
+                          <div>
+                            <input
+                              type="text"
+                              value={newSrvNum}
+                              onChange={(e) => setNewSrvNum(e.target.value)}
+                              placeholder="05"
+                              required
+                              className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white font-mono"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <input
+                              type="text"
+                              value={newSrvTitle}
+                              onChange={(e) => setNewSrvTitle(e.target.value)}
+                              placeholder="Capability Title (e.g. Creative Direction)"
+                              required
+                              className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <textarea
+                            rows={2}
+                            value={newSrvDesc}
+                            onChange={(e) => setNewSrvDesc(e.target.value)}
+                            placeholder="Detailed description of what you deliver..."
+                            required
+                            className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded text-xs uppercase cursor-pointer"
+                        >
+                          + Add Service
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 4: CONTACT & GLOBAL AVAILABILITY (USER REQUIREMENT #4) */}
+                  {contentSubTab === 'contact' && (
+                    <form onSubmit={handleSaveContact} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Contact Headline
+                        </label>
+                        <input
+                          type="text"
+                          value={contactForm.headline}
+                          onChange={(e) => setContactForm({ ...contactForm, headline: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Contact Subtext
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={contactForm.subtext}
+                          onChange={(e) => setContactForm({ ...contactForm, subtext: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white leading-relaxed"
+                        />
+                      </div>
+
+                      {/* EDIT OPTION FOR AVAILABILITY GLOBALLY (USER REQUIREMENT #4) */}
+                      <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+                        <label className="block text-xs font-mono uppercase text-amber-400">
+                          Global Availability Text (Editable)
+                        </label>
+                        <input
+                          type="text"
+                          value={contactForm.availabilityText}
+                          onChange={(e) => setContactForm({ ...contactForm, availabilityText: e.target.value })}
+                          placeholder="e.g. Available Globally (Remote & On-Site) or Based in New York"
+                          required
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-950 border border-zinc-700 rounded-lg text-white font-mono"
+                        />
+                        <p className="text-[11px] text-zinc-400">
+                          Appears in the Contact section directly next to the map pin icon.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Direct Contact Email
+                        </label>
+                        <input
+                          type="email"
+                          value={contactForm.email}
+                          onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                          required
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white font-mono"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Save Contact & Availability</span>
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: LAYOUT & FULLSCREEN BACKGROUND IMAGE (USER REQUIREMENT #1 & #4) */}
+              {activeTab === 'layout' && (
+                <div className="space-y-6">
+                  {/* FULLSCREEN BACKGROUND IMAGE CONTROLS (USER REQUIREMENT #4) */}
+                  <div className="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+                          <ImageIcon className="w-4 h-4 text-amber-400" />
+                          <span>Top Full-Screen Background Image Option</span>
+                        </h4>
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          Enable an immersive cinematic full-screen hero image backdrop with dark overlay.
+                        </p>
+                      </div>
+
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={heroForm.showFullscreenBg}
+                          onChange={(e) => {
+                            const updated = { ...heroForm, showFullscreenBg: e.target.checked };
+                            setHeroForm(updated);
+                            onUpdateHero(updated);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-white"></div>
+                      </label>
+                    </div>
+
+                    {heroForm.showFullscreenBg && (
+                      <div className="pt-3 border-t border-zinc-800/80 space-y-3 animate-in fade-in">
+                        <div>
+                          <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                            Background Image URL or Upload File
+                          </label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="text"
+                              value={heroForm.fullscreenBgUrl}
+                              onChange={(e) => {
+                                const updated = { ...heroForm, fullscreenBgUrl: e.target.value };
+                                setHeroForm(updated);
+                                onUpdateHero(updated);
+                              }}
+                              placeholder="Paste background image link..."
+                              className="flex-grow px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded text-white font-mono"
+                            />
+                            <label className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded text-xs text-zinc-200 cursor-pointer flex items-center gap-1.5 shrink-0">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload Image</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleBgFileUpload}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Dark Overlay Opacity Slider */}
+                        <div>
+                          <div className="flex justify-between text-xs font-mono text-zinc-400 mb-1">
+                            <span>Overlay Darkness (Ensures text readability)</span>
+                            <span className="text-white font-bold">{heroForm.bgOverlayOpacity || 75}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="30"
+                            max="95"
+                            value={heroForm.bgOverlayOpacity || 75}
+                            onChange={(e) => {
+                              const updated = { ...heroForm, bgOverlayOpacity: Number(e.target.value) };
+                              setHeroForm(updated);
+                              onUpdateHero(updated);
+                            }}
+                            className="w-full accent-white cursor-pointer h-1.5 bg-zinc-800 rounded"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SECTION TOGGLE OPTIONS */}
+                  <div className="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-4">
+                    <h4 className="text-sm font-bold text-white uppercase flex items-center gap-2">
+                      <Sliders className="w-4 h-4" />
+                      <span>Section Visibility & Layout Options</span>
+                    </h4>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-semibold text-white block">
+                            Show "Areas of Expertise / Services" Section
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            Display numbered capabilities strip on the homepage
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={layoutForm.showServices}
+                          onChange={(e) => {
+                            const updated = { ...layoutForm, showServices: e.target.checked };
+                            setLayoutForm(updated);
+                            onUpdateLayout(updated);
+                          }}
+                          className="w-4 h-4 accent-white cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+                        <div>
+                          <span className="text-xs font-semibold text-white block">
+                            Show "About the Studio" Section
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            Display portrait frame, biography and toolkit
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={layoutForm.showAbout}
+                          onChange={(e) => {
+                            const updated = { ...layoutForm, showAbout: e.target.checked };
+                            setLayoutForm(updated);
+                            onUpdateLayout(updated);
+                          }}
+                          className="w-4 h-4 accent-white cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RESET TO FACTORY CONTENT */}
+                  <div className="pt-2 flex justify-between items-center text-xs text-zinc-500">
+                    <span>Revert all text and layout changes to original template</span>
+                    <button
+                      onClick={() => {
+                        if (confirm('Revert all texts and layout options to initial defaults?')) {
+                          onResetSiteContent();
+                          setContentSavedMsg('Site content reverted to initial defaults.');
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-400 hover:text-white cursor-pointer"
+                    >
+                      Reset All Texts
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: SECURITY & RECOVERY */}
               {activeTab === 'settings' && (
                 <div className="space-y-6">
                   <div>
@@ -785,7 +1471,6 @@ export const AdminModal = ({
                     </p>
                   </div>
 
-                  {/* Registered Recovery Email */}
                   <div className="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
                     <span className="text-xs font-mono uppercase text-zinc-400 block">
                       Registered Owner Email
@@ -801,7 +1486,6 @@ export const AdminModal = ({
                     </p>
                   </div>
 
-                  {/* Cryptographic Protection Status */}
                   <div className="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
                     <span className="text-xs font-mono uppercase text-zinc-400 block">
                       Cryptographic Protection

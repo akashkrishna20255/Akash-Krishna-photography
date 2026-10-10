@@ -1,6 +1,13 @@
-import { Camera, Film, Palette, Layers, Award, CheckCircle2 } from 'lucide-react';
+import { Edit2 } from 'lucide-react';
+import { SiteContent } from '../types/gallery';
 
-export const AboutSimple = () => {
+interface AboutSimpleProps {
+  aboutContent: SiteContent['about'];
+  isAdmin: boolean;
+  onOpenAdmin: (tab: 'content') => void;
+}
+
+export const AboutSimple = ({ aboutContent, isAdmin, onOpenAdmin }: AboutSimpleProps) => {
   return (
     <section id="about" className="py-20 lg:py-28 bg-black border-b border-zinc-900 text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
@@ -10,8 +17,8 @@ export const AboutSimple = () => {
             <div className="relative rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-2xl group">
               <div className="aspect-[4/5] overflow-hidden">
                 <img
-                  src="/src/assets/images/hero_designer_portrait_1791613619703.jpg"
-                  alt="Akash Krishna, Visual Designer & Editor"
+                  src={aboutContent.portraitUrl}
+                  alt={aboutContent.title}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                 />
@@ -27,35 +34,43 @@ export const AboutSimple = () => {
           {/* Right Column: Bio & Experience */}
           <div className="lg:col-span-7 flex flex-col justify-between">
             <div>
-              <div className="text-xs uppercase tracking-widest text-zinc-500 font-mono mb-2">
-                Biography
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs uppercase tracking-widest text-zinc-500 font-mono">
+                  {aboutContent.badge}
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => onOpenAdmin('content')}
+                    className="text-xs font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>Edit Bio</span>
+                  </button>
+                )}
               </div>
+
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-6 uppercase">
-                About the Studio
+                {aboutContent.title}
               </h2>
 
               <div className="space-y-4 text-sm sm:text-base text-zinc-300 font-light leading-relaxed mb-8">
-                <p>
-                  I am a multidisciplinary visual designer and film editor creating brand systems, high-retention moving image sequences, and editorial publications for culture-forward brands and artists.
-                </p>
-                <p>
-                  My methodology is rooted in structural restraint: stripping away ornamentation so the core narrative speaks with authority. Whether color grading a cinema short or structuring a 200-page book, I strive for clarity, tension, and craftsmanship.
-                </p>
+                <p>{aboutContent.bio1}</p>
+                {aboutContent.bio2 && <p>{aboutContent.bio2}</p>}
               </div>
 
               {/* Skills & Software Quick Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-6 border-t border-zinc-900 text-xs font-mono">
                 <div>
                   <span className="text-zinc-500 block mb-1">BRAND DESIGN</span>
-                  <span className="text-zinc-200">Figma, Illustrator, Glyphs</span>
+                  <span className="text-zinc-200">{aboutContent.skillBrand}</span>
                 </div>
                 <div>
                   <span className="text-zinc-500 block mb-1">POST-PRODUCTION</span>
-                  <span className="text-zinc-200">Premiere, DaVinci Resolve</span>
+                  <span className="text-zinc-200">{aboutContent.skillPost}</span>
                 </div>
                 <div>
                   <span className="text-zinc-500 block mb-1">3D & MOTION</span>
-                  <span className="text-zinc-200">After Effects, Cinema 4D</span>
+                  <span className="text-zinc-200">{aboutContent.skillMotion}</span>
                 </div>
               </div>
             </div>
@@ -63,16 +78,28 @@ export const AboutSimple = () => {
             {/* Quick Stats Strip */}
             <div className="mt-8 pt-6 border-t border-zinc-900 grid grid-cols-3 gap-6">
               <div>
-                <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">08+</span>
-                <span className="block text-[11px] font-mono text-zinc-500 mt-1 uppercase">Years Experience</span>
+                <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
+                  {aboutContent.stat1Value}
+                </span>
+                <span className="block text-[11px] font-mono text-zinc-500 mt-1 uppercase">
+                  {aboutContent.stat1Label}
+                </span>
               </div>
               <div>
-                <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">50+</span>
-                <span className="block text-[11px] font-mono text-zinc-500 mt-1 uppercase">Projects Delivered</span>
+                <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
+                  {aboutContent.stat2Value}
+                </span>
+                <span className="block text-[11px] font-mono text-zinc-500 mt-1 uppercase">
+                  {aboutContent.stat2Label}
+                </span>
               </div>
               <div>
-                <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">100%</span>
-                <span className="block text-[11px] font-mono text-zinc-500 mt-1 uppercase">Client Retention</span>
+                <span className="text-2xl sm:text-3xl font-bold text-white tabular-nums">
+                  {aboutContent.stat3Value}
+                </span>
+                <span className="block text-[11px] font-mono text-zinc-500 mt-1 uppercase">
+                  {aboutContent.stat3Label}
+                </span>
               </div>
             </div>
           </div>
