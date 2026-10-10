@@ -17,6 +17,12 @@ export interface ServiceItem {
   description: string;
 }
 
+export interface SocialLink {
+  id: string;
+  name: string;
+  url: string;
+}
+
 export interface SiteContent {
   hero: {
     name: string;
@@ -51,6 +57,7 @@ export interface SiteContent {
     subtext: string;
     email: string;
     availabilityText: string;
+    socialLinks: SocialLink[];
   };
   layout: {
     galleryDefaultView: 'grid3' | 'grid2' | 'feed';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GalleryPhoto, SiteContent, ServiceItem } from '../types/gallery';
+import { GalleryPhoto, SiteContent, ServiceItem, SocialLink } from '../types/gallery';
 import { DEFAULT_PHOTOS } from '../data/defaultGallery';
 import { DEFAULT_SITE_CONTENT } from '../data/defaultSiteContent';
 import {
@@ -45,7 +45,14 @@ export const useGalleryStore = () => {
             ...parsed,
             hero: { ...DEFAULT_SITE_CONTENT.hero, ...parsed.hero },
             about: { ...DEFAULT_SITE_CONTENT.about, ...parsed.about },
-            contact: { ...DEFAULT_SITE_CONTENT.contact, ...parsed.contact },
+            contact: {
+              ...DEFAULT_SITE_CONTENT.contact,
+              ...parsed.contact,
+              socialLinks:
+                Array.isArray(parsed.contact.socialLinks) && parsed.contact.socialLinks.length > 0
+                  ? parsed.contact.socialLinks
+                  : DEFAULT_SITE_CONTENT.contact.socialLinks
+            },
             layout: { ...DEFAULT_SITE_CONTENT.layout, ...parsed.layout }
           };
         }
@@ -163,6 +170,46 @@ export const useGalleryStore = () => {
     setSiteContent((prev) => ({
       ...prev,
       layout: { ...prev.layout, ...newLayout }
+    }));
+  };
+
+  // Social Links CRUD
+  const addSocialLink = (social: Omit<SocialLink, 'id'>) => {
+    if (!isAdmin) return;
+    const newLink: SocialLink = {
+      ...social,
+      id: `soc-${Date.now()}`
+    };
+    setSiteContent((prev) => ({
+      ...prev,
+      contact: {
+        ...prev.contact,
+        socialLinks: [...(prev.contact.socialLinks || []), newLink]
+      }
+    }));
+  };
+
+  const updateSocialLink = (id: string, updated: Partial<SocialLink>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      contact: {
+        ...prev.contact,
+        socialLinks: (prev.contact.socialLinks || []).map((s) =>
+          s.id === id ? { ...s, ...updated } : s
+        )
+      }
+    }));
+  };
+
+  const deleteSocialLink = (id: string) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      contact: {
+        ...prev.contact,
+        socialLinks: (prev.contact.socialLinks || []).filter((s) => s.id !== id)
+      }
     }));
   };
 
@@ -382,6 +429,9 @@ export const useGalleryStore = () => {
     addService,
     updateService,
     deleteService,
+    addSocialLink,
+    updateSocialLink,
+    deleteSocialLink,
     resetSiteContentToDefaults,
     login,
     logout,

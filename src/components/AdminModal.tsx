@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { GalleryPhoto, CategoryType, SiteContent, ServiceItem } from '../types/gallery';
+import { GalleryPhoto, CategoryType, SiteContent, ServiceItem, SocialLink } from '../types/gallery';
 import {
   X,
   Lock,
@@ -20,9 +20,12 @@ import {
   Type,
   Layout,
   Image as ImageIcon,
-  User,
   Sliders,
-  Check
+  Check,
+  Globe,
+  ArrowUpRight,
+  Share2,
+  User
 } from 'lucide-react';
 
 interface AdminModalProps {
@@ -50,6 +53,9 @@ interface AdminModalProps {
   onAddService: (service: Omit<ServiceItem, 'id'>) => void;
   onUpdateService: (id: string, updated: Partial<ServiceItem>) => void;
   onDeleteService: (id: string) => void;
+  onAddSocialLink: (social: Omit<SocialLink, 'id'>) => void;
+  onUpdateSocialLink: (id: string, updated: Partial<SocialLink>) => void;
+  onDeleteSocialLink: (id: string) => void;
   onResetSiteContent: () => void;
 }
 
@@ -58,6 +64,17 @@ const CATEGORIES: CategoryType[] = [
   'Film & Motion',
   'Photography',
   'Editorial'
+];
+
+const PRESET_PLATFORMS = [
+  { name: 'Instagram', defaultUrl: 'https://instagram.com/' },
+  { name: 'Behance', defaultUrl: 'https://behance.net/' },
+  { name: 'Vimeo', defaultUrl: 'https://vimeo.com/' },
+  { name: 'LinkedIn', defaultUrl: 'https://linkedin.com/in/' },
+  { name: 'YouTube', defaultUrl: 'https://youtube.com/@' },
+  { name: 'X / Twitter', defaultUrl: 'https://x.com/' },
+  { name: 'Dribbble', defaultUrl: 'https://dribbble.com/' },
+  { name: 'ArtStation', defaultUrl: 'https://artstation.com/' }
 ];
 
 export const AdminModal = ({
@@ -85,6 +102,9 @@ export const AdminModal = ({
   onAddService,
   onUpdateService,
   onDeleteService,
+  onAddSocialLink,
+  onUpdateSocialLink,
+  onDeleteSocialLink,
   onResetSiteContent
 }: AdminModalProps) => {
   if (!isOpen) return null;
@@ -92,7 +112,7 @@ export const AdminModal = ({
   // View state: 'login' | 'request-reset' | 'enter-new-key'
   const [authView, setAuthView] = useState<'login' | 'request-reset' | 'enter-new-key'>('login');
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'content' | 'layout' | 'settings'>(initialTab);
-  const [contentSubTab, setContentSubTab] = useState<'hero' | 'about' | 'services' | 'contact'>('hero');
+  const [contentSubTab, setContentSubTab] = useState<'hero' | 'about' | 'services' | 'contact' | 'socials'>('contact');
 
   // Login inputs
   const [inputKey, setInputKey] = useState('');
@@ -146,6 +166,10 @@ export const AdminModal = ({
   const [newSrvNum, setNewSrvNum] = useState('05');
   const [newSrvTitle, setNewSrvTitle] = useState('');
   const [newSrvDesc, setNewSrvDesc] = useState('');
+
+  // New Social Link inputs
+  const [newSocialName, setNewSocialName] = useState('');
+  const [newSocialUrl, setNewSocialUrl] = useState('');
 
   // Sync state if siteContent changes
   useEffect(() => {
@@ -311,11 +335,24 @@ export const AdminModal = ({
     setTimeout(() => setContentSavedMsg(''), 3000);
   };
 
-  // Save Layout Edits
-  const handleSaveLayout = (e: React.FormEvent) => {
+  // Add Social Link
+  const handleAddSocialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateLayout(layoutForm);
-    setContentSavedMsg('Layout & section visibility preferences saved!');
+    if (!newSocialName.trim() || !newSocialUrl.trim()) return;
+
+    let formattedUrl = newSocialUrl.trim();
+    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = `https://${formattedUrl}`;
+    }
+
+    onAddSocialLink({
+      name: newSocialName.trim(),
+      url: formattedUrl
+    });
+
+    setNewSocialName('');
+    setNewSocialUrl('');
+    setContentSavedMsg('Social media link added successfully!');
     setTimeout(() => setContentSavedMsg(''), 3000);
   };
 
@@ -338,6 +375,7 @@ export const AdminModal = ({
   };
 
   const isLockedOut = secondsRemaining > 0;
+  const currentSocialLinks = siteContent.contact.socialLinks || [];
 
   return (
     <div
@@ -382,7 +420,7 @@ export const AdminModal = ({
                     Admin Security Access
                   </h3>
                   <p className="text-xs text-zinc-400">
-                    Enter your security key to access gallery uploads, full site text editing, and layouts.
+                    Enter your security key to access gallery uploads, direct social link management, and text editing.
                   </p>
                 </div>
 
@@ -664,7 +702,7 @@ export const AdminModal = ({
                 }`}
               >
                 <Type className="w-3.5 h-3.5" />
-                <span>Text & Content Editor</span>
+                <span>Text & Socials</span>
               </button>
 
               <button
@@ -912,32 +950,256 @@ export const AdminModal = ({
                 </div>
               )}
 
-              {/* TAB 3: FULL TEXT & CONTENT EDITOR */}
+              {/* TAB 3: FULL TEXT & SOCIAL LINKS EDITOR */}
               {activeTab === 'content' && (
                 <div className="space-y-6">
                   {/* Sub-tab selection */}
                   <div className="flex flex-wrap gap-2 pb-4 border-b border-zinc-800">
                     {[
-                      { id: 'hero', label: 'Hero Texts' },
-                      { id: 'about', label: 'Biography & Profile' },
-                      { id: 'services', label: 'Services & Capabilities' },
-                      { id: 'contact', label: 'Contact & Availability' }
+                      { id: 'socials', label: 'Social Media Links & URLs', icon: Share2 },
+                      { id: 'contact', label: 'Contact & Availability', icon: Mail },
+                      { id: 'hero', label: 'Hero Texts', icon: Type },
+                      { id: 'about', label: 'Biography & Profile', icon: User },
+                      { id: 'services', label: 'Services & Capabilities', icon: Layout }
                     ].map((st) => (
                       <button
                         key={st.id}
                         onClick={() => setContentSubTab(st.id as any)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors cursor-pointer flex items-center gap-1.5 ${
                           contentSubTab === st.id
                             ? 'bg-white text-black font-semibold'
                             : 'bg-zinc-900 text-zinc-400 hover:text-white'
                         }`}
                       >
-                        {st.label}
+                        <st.icon className="w-3.5 h-3.5" />
+                        <span>{st.label}</span>
                       </button>
                     ))}
                   </div>
 
-                  {/* SUBTAB 1: HERO TEXTS */}
+                  {/* SUBTAB 1: SOCIAL MEDIA LINKS & DIRECT URLS */}
+                  {contentSubTab === 'socials' && (
+                    <div className="space-y-6 animate-in fade-in">
+                      <div>
+                        <h4 className="text-sm font-bold text-white uppercase flex items-center gap-2 mb-1">
+                          <Share2 className="w-4 h-4 text-amber-400" />
+                          <span>Direct Social Media Profiles</span>
+                        </h4>
+                        <p className="text-xs text-zinc-400">
+                          Add, edit, or remove your social media links. Visitors can click these buttons to open your profiles directly.
+                        </p>
+                      </div>
+
+                      {/* Current Social Links Table / Editor */}
+                      <div className="space-y-3">
+                        <div className="text-xs font-mono uppercase text-zinc-400">
+                          Active Social Profiles ({currentSocialLinks.length})
+                        </div>
+
+                        {currentSocialLinks.map((link) => (
+                          <div
+                            key={link.id}
+                            className="p-3.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between"
+                          >
+                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-[10px] font-mono uppercase text-zinc-500 block mb-1">
+                                  Platform
+                                </label>
+                                <input
+                                  type="text"
+                                  value={link.name}
+                                  onChange={(e) => onUpdateSocialLink(link.id, { name: e.target.value })}
+                                  className="w-full px-2.5 py-1.5 text-xs bg-zinc-950 border border-zinc-700 rounded text-white font-mono"
+                                  placeholder="e.g. Instagram"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="text-[10px] font-mono uppercase text-zinc-500 block mb-1">
+                                  Direct Link URL
+                                </label>
+                                <input
+                                  type="text"
+                                  value={link.url}
+                                  onChange={(e) => onUpdateSocialLink(link.id, { url: e.target.value })}
+                                  className="w-full px-2.5 py-1.5 text-xs bg-zinc-950 border border-zinc-700 rounded text-zinc-300 font-mono"
+                                  placeholder="https://..."
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800">
+                              {link.url && link.url !== '#' && (
+                                <a
+                                  href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 hover:text-white flex items-center gap-1"
+                                  title="Test link directly"
+                                >
+                                  <span>Test</span>
+                                  <ArrowUpRight className="w-3 h-3" />
+                                </a>
+                              )}
+
+                              <button
+                                onClick={() => onDeleteSocialLink(link.id)}
+                                className="p-1.5 rounded bg-zinc-900 hover:bg-red-950 text-zinc-400 hover:text-red-300 border border-zinc-800 cursor-pointer"
+                                title="Remove link"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+
+                        {currentSocialLinks.length === 0 && (
+                          <div className="p-4 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500 font-mono">
+                            No social media profiles added yet. Add one below!
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Add New Social Link Form */}
+                      <form
+                        onSubmit={handleAddSocialSubmit}
+                        className="p-5 rounded-xl bg-zinc-900/50 border border-zinc-800 space-y-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-mono uppercase text-white font-semibold">
+                            + Add New Social Media Link
+                          </h5>
+                          <span className="text-[11px] font-mono text-zinc-500">Quick Presets:</span>
+                        </div>
+
+                        {/* Quick Presets for Instant 1-Click Fill */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {PRESET_PLATFORMS.map((preset) => (
+                            <button
+                              key={preset.name}
+                              type="button"
+                              onClick={() => {
+                                setNewSocialName(preset.name);
+                                setNewSocialUrl(preset.defaultUrl);
+                              }}
+                              className="px-2.5 py-1 rounded bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-mono text-zinc-300 hover:text-white cursor-pointer"
+                            >
+                              + {preset.name}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                              Platform Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={newSocialName}
+                              onChange={(e) => setNewSocialName(e.target.value)}
+                              placeholder="e.g. Instagram"
+                              required
+                              className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-700 rounded text-white font-mono"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                              Direct Profile URL *
+                            </label>
+                            <input
+                              type="text"
+                              value={newSocialUrl}
+                              onChange={(e) => setNewSocialUrl(e.target.value)}
+                              placeholder="https://instagram.com/yourhandle"
+                              required
+                              className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-700 rounded text-white font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="px-4 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-1.5 shadow"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Profile Link</span>
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 2: CONTACT & AVAILABILITY */}
+                  {contentSubTab === 'contact' && (
+                    <form onSubmit={handleSaveContact} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Contact Headline
+                        </label>
+                        <input
+                          type="text"
+                          value={contactForm.headline}
+                          onChange={(e) => setContactForm({ ...contactForm, headline: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Contact Subtext
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={contactForm.subtext}
+                          onChange={(e) => setContactForm({ ...contactForm, subtext: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white leading-relaxed"
+                        />
+                      </div>
+
+                      {/* EDIT OPTION FOR AVAILABILITY GLOBALLY */}
+                      <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
+                        <label className="block text-xs font-mono uppercase text-amber-400">
+                          Global Availability Text (Editable)
+                        </label>
+                        <input
+                          type="text"
+                          value={contactForm.availabilityText}
+                          onChange={(e) => setContactForm({ ...contactForm, availabilityText: e.target.value })}
+                          placeholder="e.g. Available Globally (Remote & On-Site) or Based in New York"
+                          required
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-950 border border-zinc-700 rounded-lg text-white font-mono"
+                        />
+                        <p className="text-[11px] text-zinc-400">
+                          Appears in the Contact section directly next to the map pin icon.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                          Direct Contact Email
+                        </label>
+                        <input
+                          type="email"
+                          value={contactForm.email}
+                          onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                          required
+                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white font-mono"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Save Contact & Availability</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 3: HERO TEXTS */}
                   {contentSubTab === 'hero' && (
                     <form onSubmit={handleSaveHero} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -987,7 +1249,7 @@ export const AdminModal = ({
                     </form>
                   )}
 
-                  {/* SUBTAB 2: BIOGRAPHY & PROFILE (USER REQUIREMENT #3) */}
+                  {/* SUBTAB 4: BIOGRAPHY & PROFILE */}
                   {contentSubTab === 'about' && (
                     <form onSubmit={handleSaveAbout} className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1015,7 +1277,6 @@ export const AdminModal = ({
                         </div>
                       </div>
 
-                      {/* Portrait Image */}
                       <div>
                         <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
                           Portrait / Profile Image (URL or Upload)
@@ -1040,7 +1301,6 @@ export const AdminModal = ({
                         </div>
                       </div>
 
-                      {/* Bio Paragraphs */}
                       <div>
                         <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
                           Biography Paragraph 1
@@ -1068,7 +1328,7 @@ export const AdminModal = ({
                       {/* Stats */}
                       <div className="grid grid-cols-3 gap-3 pt-2 border-t border-zinc-800">
                         <div>
-                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 1 (e.g. 08+)</label>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 1</label>
                           <input
                             type="text"
                             value={aboutForm.stat1Value}
@@ -1083,7 +1343,7 @@ export const AdminModal = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 2 (e.g. 50+)</label>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 2</label>
                           <input
                             type="text"
                             value={aboutForm.stat2Value}
@@ -1098,7 +1358,7 @@ export const AdminModal = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 3 (e.g. 100%)</label>
+                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Stat 3</label>
                           <input
                             type="text"
                             value={aboutForm.stat3Value}
@@ -1114,37 +1374,6 @@ export const AdminModal = ({
                         </div>
                       </div>
 
-                      {/* Toolkits */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                        <div>
-                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Brand Skills</label>
-                          <input
-                            type="text"
-                            value={aboutForm.skillBrand}
-                            onChange={(e) => setAboutForm({ ...aboutForm, skillBrand: e.target.value })}
-                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">Post Skills</label>
-                          <input
-                            type="text"
-                            value={aboutForm.skillPost}
-                            onChange={(e) => setAboutForm({ ...aboutForm, skillPost: e.target.value })}
-                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-mono text-zinc-400 mb-1">3D / Motion Skills</label>
-                          <input
-                            type="text"
-                            value={aboutForm.skillMotion}
-                            onChange={(e) => setAboutForm({ ...aboutForm, skillMotion: e.target.value })}
-                            className="w-full px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
-                          />
-                        </div>
-                      </div>
-
                       <button
                         type="submit"
                         className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2"
@@ -1155,10 +1384,9 @@ export const AdminModal = ({
                     </form>
                   )}
 
-                  {/* SUBTAB 3: SERVICES & CAPABILITIES */}
+                  {/* SUBTAB 5: SERVICES & CAPABILITIES */}
                   {contentSubTab === 'services' && (
                     <div className="space-y-6">
-                      {/* Current Services List */}
                       <div>
                         <h4 className="text-xs font-mono uppercase text-zinc-400 mb-3">
                           Existing Capabilities ({siteContent.services.length})
@@ -1187,7 +1415,6 @@ export const AdminModal = ({
                         </div>
                       </div>
 
-                      {/* Add New Service Form */}
                       <form onSubmit={handleAddServiceSubmit} className="pt-4 border-t border-zinc-800 space-y-3">
                         <h4 className="text-xs font-mono uppercase text-zinc-400">
                           + Add New Service Capability
@@ -1208,7 +1435,7 @@ export const AdminModal = ({
                               type="text"
                               value={newSrvTitle}
                               onChange={(e) => setNewSrvTitle(e.target.value)}
-                              placeholder="Capability Title (e.g. Creative Direction)"
+                              placeholder="Capability Title"
                               required
                               className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
                             />
@@ -1219,7 +1446,7 @@ export const AdminModal = ({
                             rows={2}
                             value={newSrvDesc}
                             onChange={(e) => setNewSrvDesc(e.target.value)}
-                            placeholder="Detailed description of what you deliver..."
+                            placeholder="Description..."
                             required
                             className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
                           />
@@ -1233,81 +1460,12 @@ export const AdminModal = ({
                       </form>
                     </div>
                   )}
-
-                  {/* SUBTAB 4: CONTACT & GLOBAL AVAILABILITY (USER REQUIREMENT #4) */}
-                  {contentSubTab === 'contact' && (
-                    <form onSubmit={handleSaveContact} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
-                          Contact Headline
-                        </label>
-                        <input
-                          type="text"
-                          value={contactForm.headline}
-                          onChange={(e) => setContactForm({ ...contactForm, headline: e.target.value })}
-                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
-                          Contact Subtext
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={contactForm.subtext}
-                          onChange={(e) => setContactForm({ ...contactForm, subtext: e.target.value })}
-                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white leading-relaxed"
-                        />
-                      </div>
-
-                      {/* EDIT OPTION FOR AVAILABILITY GLOBALLY (USER REQUIREMENT #4) */}
-                      <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-                        <label className="block text-xs font-mono uppercase text-amber-400">
-                          Global Availability Text (Editable)
-                        </label>
-                        <input
-                          type="text"
-                          value={contactForm.availabilityText}
-                          onChange={(e) => setContactForm({ ...contactForm, availabilityText: e.target.value })}
-                          placeholder="e.g. Available Globally (Remote & On-Site) or Based in New York"
-                          required
-                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-950 border border-zinc-700 rounded-lg text-white font-mono"
-                        />
-                        <p className="text-[11px] text-zinc-400">
-                          Appears in the Contact section directly next to the map pin icon.
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
-                          Direct Contact Email
-                        </label>
-                        <input
-                          type="email"
-                          value={contactForm.email}
-                          onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                          required
-                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white font-mono"
-                        />
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs uppercase tracking-wider cursor-pointer flex items-center gap-2"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Save Contact & Availability</span>
-                      </button>
-                    </form>
-                  )}
                 </div>
               )}
 
-              {/* TAB 4: LAYOUT & FULLSCREEN BACKGROUND IMAGE (USER REQUIREMENT #1 & #4) */}
+              {/* TAB 4: LAYOUT & FULLSCREEN BACKGROUND IMAGE */}
               {activeTab === 'layout' && (
                 <div className="space-y-6">
-                  {/* FULLSCREEN BACKGROUND IMAGE CONTROLS (USER REQUIREMENT #4) */}
                   <div className="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1366,10 +1524,9 @@ export const AdminModal = ({
                           </div>
                         </div>
 
-                        {/* Dark Overlay Opacity Slider */}
                         <div>
                           <div className="flex justify-between text-xs font-mono text-zinc-400 mb-1">
-                            <span>Overlay Darkness (Ensures text readability)</span>
+                            <span>Overlay Darkness</span>
                             <span className="text-white font-bold">{heroForm.bgOverlayOpacity || 75}%</span>
                           </div>
                           <input
@@ -1389,11 +1546,10 @@ export const AdminModal = ({
                     )}
                   </div>
 
-                  {/* SECTION TOGGLE OPTIONS */}
                   <div className="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-4">
                     <h4 className="text-sm font-bold text-white uppercase flex items-center gap-2">
                       <Sliders className="w-4 h-4" />
-                      <span>Section Visibility & Layout Options</span>
+                      <span>Section Visibility</span>
                     </h4>
 
                     <div className="space-y-3">
@@ -1441,7 +1597,6 @@ export const AdminModal = ({
                     </div>
                   </div>
 
-                  {/* RESET TO FACTORY CONTENT */}
                   <div className="pt-2 flex justify-between items-center text-xs text-zinc-500">
                     <span>Revert all text and layout changes to original template</span>
                     <button

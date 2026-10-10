@@ -58,7 +58,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     headline: "Let's Work Together.",
     subtext: 'Have a brand identity to establish, a film edit that needs precise tempo, or an editorial publication? Share your scope below.',
     email: 'akashkrishna67@gmail.com',
-    availabilityText: 'Available Globally (Remote & On-Site)'
+    availabilityText: 'Available Globally (Remote & On-Site)',
+    socialLinks: [
+      { id: 'soc-1', name: 'Behance', url: 'https://behance.net' },
+      { id: 'soc-2', name: 'Vimeo', url: 'https://vimeo.com' },
+      { id: 'soc-3', name: 'Instagram', url: 'https://instagram.com' },
+      { id: 'soc-4', name: 'LinkedIn', url: 'https://linkedin.com' }
+    ]
   },
   layout: {
     galleryDefaultView: 'grid3',

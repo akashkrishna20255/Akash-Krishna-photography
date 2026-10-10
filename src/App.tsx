@@ -31,6 +31,9 @@ export default function App() {
     addService,
     updateService,
     deleteService,
+    addSocialLink,
+    updateSocialLink,
+    deleteSocialLink,
     resetSiteContentToDefaults,
     login,
     logout,
@@ -39,11 +42,11 @@ export default function App() {
   } = useGalleryStore();
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
-  const [adminModalInitialTab, setAdminModalInitialTab] = useState<'add' | 'manage' | 'content' | 'layout' | 'settings'>('add');
+  const [adminModalInitialTab, setAdminModalInitialTab] = useState<'add' | 'manage' | 'content' | 'layout' | 'settings'>('content');
   const [editingPhoto, setEditingPhoto] = useState<GalleryPhoto | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const handleOpenAdminWithTab = (tab: 'add' | 'manage' | 'content' | 'layout' | 'settings' = 'add') => {
+  const handleOpenAdminWithTab = (tab: 'add' | 'manage' | 'content' | 'layout' | 'settings' = 'content') => {
     setAdminModalInitialTab(tab);
     setIsAdminModalOpen(true);
   };
@@ -108,7 +111,7 @@ export default function App() {
           />
         )}
 
-        {/* Contact Section with Editable Availability */}
+        {/* Contact Section with Editable Availability & Direct Social Links */}
         <ContactSimple
           contactContent={siteContent.contact}
           isAdmin={isAdmin}
@@ -160,6 +163,9 @@ export default function App() {
         onAddService={addService}
         onUpdateService={updateService}
         onDeleteService={deleteService}
+        onAddSocialLink={addSocialLink}
+        onUpdateSocialLink={updateSocialLink}
+        onDeleteSocialLink={deleteSocialLink}
         onResetSiteContent={resetSiteContentToDefaults}
       />
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Copy, Check, Send, CheckCircle2, MapPin, ArrowUpRight, Edit2 } from 'lucide-react';
+import { Mail, Copy, Check, Send, CheckCircle2, MapPin, ArrowUpRight, Edit2, Plus } from 'lucide-react';
 import { SiteContent } from '../types/gallery';
 
 interface ContactSimpleProps {
@@ -18,6 +18,7 @@ export const ContactSimple = ({ contactContent, isAdmin, onOpenAdmin }: ContactS
   const [copied, setCopied] = useState(false);
 
   const contactEmail = contactContent.email || 'akashkrishna67@gmail.com';
+  const socialLinks = contactContent.socialLinks || [];
 
   const handleCopy = () => {
     navigator.clipboard.writeText(contactEmail);
@@ -37,6 +38,13 @@ export const ContactSimple = ({ contactContent, isAdmin, onOpenAdmin }: ContactS
       setEmail('');
       setMessage('');
     }, 700);
+  };
+
+  // Helper to ensure URLs open correctly
+  const formatUrl = (url: string) => {
+    if (!url || url === '#') return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `https://${url}`;
   };
 
   return (
@@ -98,22 +106,55 @@ export const ContactSimple = ({ contactContent, isAdmin, onOpenAdmin }: ContactS
                   <span>{contactContent.availabilityText}</span>
                 </div>
 
-                <div className="flex flex-wrap gap-3 pt-2">
-                  {[
-                    { name: 'Behance', url: '#' },
-                    { name: 'Vimeo', url: '#' },
-                    { name: 'Instagram', url: '#' },
-                    { name: 'LinkedIn', url: '#' }
-                  ].map((item) => (
-                    <a
-                      key={item.name}
-                      href={item.url}
-                      className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors flex items-center gap-1"
-                    >
-                      <span>{item.name}</span>
-                      <ArrowUpRight className="w-3 h-3 text-zinc-600" />
-                    </a>
-                  ))}
+                {/* Social Media Links with Direct URLs */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-mono uppercase text-zinc-500 block">
+                      Connect & Socials
+                    </span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => onOpenAdmin('content')}
+                        className="text-xs font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                        title="Add or Edit Direct Social Links"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        <span>Edit Social Links</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2.5">
+                    {socialLinks.map((item) => {
+                      const directUrl = formatUrl(item.url);
+                      return (
+                        <a
+                          key={item.id}
+                          href={directUrl}
+                          target={directUrl !== '#' ? '_blank' : undefined}
+                          rel={directUrl !== '#' ? 'noopener noreferrer' : undefined}
+                          className="px-3.5 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-300 hover:text-white hover:border-zinc-600 transition-all flex items-center gap-1.5 shadow-sm hover:bg-zinc-900 cursor-pointer group"
+                        >
+                          <span>{item.name}</span>
+                          <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                        </a>
+                      );
+                    })}
+
+                    {socialLinks.length === 0 && (
+                      <p className="text-xs text-zinc-600 font-mono">No social links added yet.</p>
+                    )}
+
+                    {isAdmin && (
+                      <button
+                        onClick={() => onOpenAdmin('content')}
+                        className="px-3 py-2 rounded-lg bg-zinc-900/60 border border-dashed border-zinc-700 hover:border-amber-400 text-xs font-mono text-zinc-400 hover:text-amber-400 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Social Link</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
