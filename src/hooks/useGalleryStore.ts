@@ -15,6 +15,7 @@ import {
   persistSiteContentLocally,
   loadSiteContentLocally
 } from '../utils/persistentStorage';
+import { fetchSiteContentFromBackend, persistSiteContentToBackend } from '../utils/backend';
 
 const STORAGE_KEY_PHOTOS = 'akash_portfolio_photos_v2';
 const STORAGE_KEY_SITE_CONTENT = 'akash_portfolio_site_content_v2';
@@ -143,16 +144,29 @@ export const useGalleryStore = () => {
 
       // Check IndexedDB for persisted site content
       try {
-        const storedContent = await loadSiteContentLocally();
-        if (storedContent && isMounted) {
-          setSiteContent((prev) => ({
-            ...prev,
-            ...storedContent,
-            categories: storedContent.categories && storedContent.categories.length > 0
-              ? storedContent.categories
-              : prev.categories,
-            allCategoryLabel: storedContent.allCategoryLabel || prev.allCategoryLabel
-          }));
+        const backendContent = await fetchSiteContentFromBackend();
+        if (backendContent && Object.keys(backendContent).length > 0) {
+            setSiteContent((prev) => ({
+                ...prev,
+                ...backendContent,
+                categories: backendContent.categories && backendContent.categories.length > 0
+                  ? backendContent.categories
+                  : prev.categories,
+                allCategoryLabel: backendContent.allCategoryLabel || prev.allCategoryLabel
+              }));
+            persistSiteContentLocally(backendContent);
+        } else {
+            const storedContent = await loadSiteContentLocally();
+            if (storedContent && isMounted) {
+              setSiteContent((prev) => ({
+                ...prev,
+                ...storedContent,
+                categories: storedContent.categories && storedContent.categories.length > 0
+                  ? storedContent.categories
+                  : prev.categories,
+                allCategoryLabel: storedContent.allCategoryLabel || prev.allCategoryLabel
+              }));
+            }
         }
       } catch {}
 
@@ -231,51 +245,63 @@ export const useGalleryStore = () => {
   // Update full site content
   const updateSiteContent = (newContent: Partial<SiteContent>) => {
     if (!isAdmin) return;
-    setSiteContent((prev) => ({
-      ...prev,
-      ...newContent
-    }));
+    setSiteContent((prev) => {
+      const updated = { ...prev, ...newContent };
+      persistSiteContentLocally(updated);
+      persistSiteContentToBackend(updated);
+      return updated;
+    });
   };
 
   // Update specific sections
   const updateHeroContent = (newHero: Partial<SiteContent['hero']>) => {
     if (!isAdmin) return;
-    setSiteContent((prev) => ({
-      ...prev,
-      hero: { ...prev.hero, ...newHero }
-    }));
+    setSiteContent((prev) => {
+      const updated = { ...prev, hero: { ...prev.hero, ...newHero } };
+      persistSiteContentLocally(updated);
+      persistSiteContentToBackend(updated);
+      return updated;
+    });
   };
 
   const updateGalleryContent = (newGallery: Partial<SiteContent['gallery']>) => {
     if (!isAdmin) return;
-    setSiteContent((prev) => ({
-      ...prev,
-      gallery: { ...prev.gallery, ...newGallery }
-    }));
+    setSiteContent((prev) => {
+      const updated = { ...prev, gallery: { ...prev.gallery, ...newGallery } };
+      persistSiteContentLocally(updated);
+      persistSiteContentToBackend(updated);
+      return updated;
+    });
   };
 
   const updateAboutContent = (newAbout: Partial<SiteContent['about']>) => {
     if (!isAdmin) return;
-    setSiteContent((prev) => ({
-      ...prev,
-      about: { ...prev.about, ...newAbout }
-    }));
+    setSiteContent((prev) => {
+      const updated = { ...prev, about: { ...prev.about, ...newAbout } };
+      persistSiteContentLocally(updated);
+      persistSiteContentToBackend(updated);
+      return updated;
+    });
   };
 
   const updateContactContent = (newContact: Partial<SiteContent['contact']>) => {
     if (!isAdmin) return;
-    setSiteContent((prev) => ({
-      ...prev,
-      contact: { ...prev.contact, ...newContact }
-    }));
+    setSiteContent((prev) => {
+      const updated = { ...prev, contact: { ...prev.contact, ...newContact } };
+      persistSiteContentLocally(updated);
+      persistSiteContentToBackend(updated);
+      return updated;
+    });
   };
 
   const updateLayoutContent = (newLayout: Partial<SiteContent['layout']>) => {
     if (!isAdmin) return;
-    setSiteContent((prev) => ({
-      ...prev,
-      layout: { ...prev.layout, ...newLayout }
-    }));
+    setSiteContent((prev) => {
+      const updated = { ...prev, layout: { ...prev.layout, ...newLayout } };
+      persistSiteContentLocally(updated);
+      persistSiteContentToBackend(updated);
+      return updated;
+    });
   };
 
   // Social Links CRUD
