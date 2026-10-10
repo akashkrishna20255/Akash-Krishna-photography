@@ -152,10 +152,10 @@ export const GalleryGrid = ({
                 <Plus className="w-7 h-7" />
               </div>
               <span className="text-base font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-wider font-mono">
-                + Add Project (5 Photos)
+                + Add Project (Up to 10 Photos)
               </span>
               <p className="text-xs text-zinc-500 font-mono mt-1 max-w-xs">
-                Upload all 5 showcase photos to present the full project
+                Upload up to 10 showcase photos to present the full project
               </p>
             </div>
           )}
@@ -178,16 +178,16 @@ export const GalleryGrid = ({
                 }`}
               >
                 <img
+                  key={`${photo.id}-${photo.imageUrl}`}
                   src={photo.imageUrl}
                   alt={photo.title}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                  onLoad={(e) => {
+                    e.currentTarget.style.display = 'block';
+                  }}
                   onError={(e) => {
-                    const img = e.currentTarget;
-                    img.style.display = 'none';
-                    if (img.parentElement) {
-                      img.parentElement.classList.add('flex', 'items-center', 'justify-center', 'bg-zinc-900');
-                    }
+                    e.currentTarget.style.opacity = '0.4';
                   }}
                 />
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GalleryPhoto, CategoryType, SiteContent, ServiceItem, SocialLink } from '../types/gallery';
+import { compressImageFile } from '../utils/imageCompressor';
 import {
   X,
   Lock,
@@ -152,10 +153,10 @@ export const AdminModal = ({
   const [resetStatus, setResetStatus] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const [isResetting, setIsResetting] = useState(false);
 
-  // 5 Showcase Photo slots state for Add Work
+  // Up to 10 Showcase Photo slots state for Add Work
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState<CategoryType>('Visual Design');
-  const [newPhotoSlots, setNewPhotoSlots] = useState<string[]>(['', '', '', '', '']);
+  const [newPhotoSlots, setNewPhotoSlots] = useState<string[]>(['', '', '', '', '', '', '', '', '', '']);
   const [newYear, setNewYear] = useState('2026');
   const [newDescription, setNewDescription] = useState('');
   const [addSuccess, setAddSuccess] = useState(false);
@@ -269,44 +270,44 @@ export const AdminModal = ({
     }
   };
 
-  // 5-Photo Batch Upload for Add Work
-  const handleBatchFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Up to 10 Photos Batch Upload for Add Work
+  const handleBatchFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const fileList = Array.from(files).slice(0, 5);
-    fileList.forEach((file, idx) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result;
-        if (typeof result === 'string') {
-          setNewPhotoSlots((prev) => {
-            const updated = [...prev];
-            updated[idx] = result;
-            return updated;
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    const fileList = Array.from(files).slice(0, 10);
+    const updated = [...newPhotoSlots];
+    let targetIdx = 0;
+
+    for (let i = 0; i < fileList.length && targetIdx < 10; i++) {
+      try {
+        const compressed = await compressImageFile(fileList[i], 1600, 0.82);
+        updated[targetIdx] = compressed;
+        targetIdx++;
+      } catch (err) {
+        console.error('Failed to compress batch file', err);
+      }
+    }
+    setNewPhotoSlots(updated);
+    e.target.value = '';
   };
 
-  // Single Slot File Upload for Add Work
-  const handleSlotFileUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  // Single Slot File Upload for Add Work with compression
+  const handleSlotFileUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === 'string') {
-        setNewPhotoSlots((prev) => {
-          const updated = [...prev];
-          updated[index] = result;
-          return updated;
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageFile(file, 1600, 0.82);
+      setNewPhotoSlots((prev) => {
+        const updated = [...prev];
+        updated[index] = compressed;
+        return updated;
+      });
+    } catch (err) {
+      console.error('Failed to compress slot file', err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleSlotUrlChange = (index: number, url: string) => {
@@ -326,36 +327,36 @@ export const AdminModal = ({
   };
 
   // Handle Fullscreen Background Image Upload
-  const handleBgFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === 'string') {
-        const updated = { ...heroForm, fullscreenBgUrl: result };
-        setHeroForm(updated);
-        onUpdateHero(updated);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageFile(file, 1920, 0.82);
+      const updated = { ...heroForm, fullscreenBgUrl: compressed };
+      setHeroForm(updated);
+      onUpdateHero(updated);
+    } catch (err) {
+      console.error('Failed to compress background file', err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
   // Handle Portrait Image Upload for About Section
-  const handlePortraitFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePortraitFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result === 'string') {
-        setAboutForm((prev) => ({ ...prev, portraitUrl: result }));
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageFile(file, 1200, 0.85);
+      setAboutForm((prev) => ({ ...prev, portraitUrl: compressed }));
+    } catch (err) {
+      console.error('Failed to compress portrait file', err);
+    } finally {
+      e.target.value = '';
+    }
   };
 
-  // Handle Add Photo with 5 showcase slots
+  // Handle Add Photo with up to 10 showcase slots
   const handleAddPhotoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -380,7 +381,7 @@ export const AdminModal = ({
 
     setAddSuccess(true);
     setNewTitle('');
-    setNewPhotoSlots(['', '', '', '', '']);
+    setNewPhotoSlots(['', '', '', '', '', '', '', '', '', '']);
     setNewDescription('');
 
     setTimeout(() => setAddSuccess(false), 3000);
@@ -795,7 +796,7 @@ export const AdminModal = ({
                 }`}
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Work (5 Photos)</span>
+                <span>Add Work (Up to 10 Photos)</span>
               </button>
 
               <button
@@ -865,24 +866,24 @@ export const AdminModal = ({
 
             {/* TAB CONTENT CONTAINER */}
             <div className="p-6 max-h-[72vh] overflow-y-auto">
-              {/* TAB 1: ADD PHOTO (MUST 5 PHOTO UPLOAD SYSTEM) */}
+              {/* TAB 1: ADD PHOTO (UP TO 10 PHOTO UPLOAD SYSTEM) */}
               {activeTab === 'add' && (
                 <div>
                   <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="text-base font-bold text-white mb-1 uppercase flex items-center gap-2">
                         <Layers className="w-4 h-4 text-amber-400" />
-                        <span>Upload Project with 5 Showcase Photos</span>
+                        <span>Upload Project with Up to 10 Showcase Photos</span>
                       </h3>
                       <p className="text-xs text-zinc-400">
-                        Upload 5 high-resolution photos to showcase your project in full depth ({uploadedAddCount}/5 uploaded).
+                        Upload up to 10 high-resolution photos to showcase your project in full depth ({uploadedAddCount}/10 configured).
                       </p>
                     </div>
 
-                    {/* Batch Upload All 5 Files */}
-                    <label className="px-3 py-2 bg-white hover:bg-zinc-200 text-black font-semibold rounded-lg text-xs font-mono cursor-pointer flex items-center gap-1.5 transition-colors shrink-0 shadow-lg">
+                    {/* Batch Upload Up to 10 Files */}
+                    <label className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-black font-semibold rounded-lg text-xs font-mono cursor-pointer flex items-center gap-1.5 transition-colors shrink-0 shadow-lg">
                       <Upload className="w-3.5 h-3.5" />
-                      <span>Batch Upload 5 Photos</span>
+                      <span>Batch Upload Up to 10 Photos</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -901,31 +902,38 @@ export const AdminModal = ({
                   )}
 
                   <form onSubmit={handleAddPhotoSubmit} className="space-y-5">
-                    {/* 5-Photo Showcase Slots */}
+                    {/* Up to 10-Photo Showcase Slots */}
                     <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
                       <div className="text-xs font-mono uppercase text-amber-400 font-semibold flex items-center justify-between">
-                        <span>5 Photo Showcase Slots</span>
+                        <span>Up to 10 Photo Showcase Slots</span>
                         <span className="text-zinc-500 text-[11px] lowercase">Photo 1 serves as the primary cover</span>
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
                         {newPhotoSlots.map((slotUrl, idx) => (
                           <div
                             key={idx}
-                            className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center gap-3"
+                            className={`p-3 rounded-lg border flex items-center gap-3 ${
+                              idx === 0 ? 'bg-zinc-950 border-amber-500/40' : 'bg-zinc-950 border-zinc-800'
+                            }`}
                           >
                             {/* Slot Thumbnail */}
-                            <div className="w-14 h-14 rounded bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0 flex items-center justify-center">
+                            <div className="w-14 h-14 rounded bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0 flex items-center justify-center relative">
                               {slotUrl ? (
-                                <img
-                                  src={slotUrl}
-                                  alt={`Slot ${idx + 1}`}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => (e.currentTarget.style.display = 'none')}
-                                />
+                                <>
+                                  <img
+                                    key={slotUrl.slice(0, 32)}
+                                    src={slotUrl}
+                                    alt={`Slot ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <span className="absolute bottom-0 right-0 bg-black/80 text-[9px] font-mono px-1 rounded-tl text-amber-400">
+                                    #{idx + 1}
+                                  </span>
+                                </>
                               ) : (
                                 <span className="text-[10px] font-mono text-zinc-600">
-                                  Slot {idx + 1}
+                                  #{idx + 1}
                                 </span>
                               )}
                             </div>
@@ -1051,7 +1059,7 @@ export const AdminModal = ({
                   <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
                     <div>
                       <h3 className="text-base font-bold text-white uppercase">Project Showcase</h3>
-                      <p className="text-xs text-zinc-400">Modify titles, 5-photo showcases, or delete items from the live gallery.</p>
+                      <p className="text-xs text-zinc-400">Modify titles, up to 10 showcase photos, or delete items from the live gallery.</p>
                     </div>
 
                     <button
@@ -1090,7 +1098,7 @@ export const AdminModal = ({
                           <button
                             onClick={() => onEditPhoto(item)}
                             className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 cursor-pointer"
-                            title="Edit Project & 5 Photos"
+                            title="Edit Project & Up to 10 Photos"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>

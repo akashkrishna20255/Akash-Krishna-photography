@@ -19,7 +19,7 @@ export const LightboxModal = ({
   onNext,
   onPrev
 }: LightboxModalProps) => {
-  // Active photo index within the current project's 5-photo showcase
+  // Active photo index within the current project's showcase
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
 
   // Reset active photo to 0 when project changes
@@ -27,7 +27,7 @@ export const LightboxModal = ({
     setActivePhotoIndex(0);
   }, [photo?.id]);
 
-  // Project showcase images list (up to 5 photos)
+  // Project showcase images list (up to 10 photos)
   const showcaseImages: string[] = photo
     ? photo.images && photo.images.length > 0
       ? photo.images
@@ -109,7 +109,7 @@ export const LightboxModal = ({
         {/* Main Image Display with Key for Transition */}
         <div className="relative flex items-center justify-center max-h-[64vh]">
           <img
-            key={`${photo.id}-${activePhotoIndex}`}
+            key={`${photo.id}-${activePhotoIndex}-${currentImageUrl.slice(0, 32)}`}
             src={currentImageUrl}
             alt={`${photo.title} - Photo ${activePhotoIndex + 1}`}
             referrerPolicy="no-referrer"

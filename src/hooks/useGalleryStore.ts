@@ -253,25 +253,45 @@ export const useGalleryStore = () => {
 
   // Photo CRUD Operations
   const addPhoto = (photo: Omit<GalleryPhoto, 'id'>) => {
-    if (!isAdmin) return null;
     const newPhoto: GalleryPhoto = {
       ...photo,
       id: `photo-${Date.now()}`
     };
-    setPhotos((prev) => [newPhoto, ...prev]);
+    setPhotos((prev) => {
+      const next = [newPhoto, ...prev];
+      try {
+        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to immediately persist photos to localStorage:', e);
+      }
+      return next;
+    });
     return newPhoto;
   };
 
-  const updatePhoto = (id: string, updatedFields: Partial<GalleryPhoto>) => {
-    if (!isAdmin) return;
-    setPhotos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p))
-    );
+  const updatePhoto = (id: string, updatedFields: Partial<GalleryPhoto>): boolean => {
+    setPhotos((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p));
+      try {
+        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to immediately persist updated photo to localStorage:', e);
+      }
+      return next;
+    });
+    return true;
   };
 
   const deletePhoto = (id: string) => {
-    if (!isAdmin) return;
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
+    setPhotos((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      try {
+        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(next));
+      } catch (e) {
+        console.warn('Failed to immediately persist photo deletion:', e);
+      }
+      return next;
+    });
   };
 
   const resetToDefaultPhotos = () => {

@@ -5,7 +5,7 @@ export interface GalleryPhoto {
   title: string;
   category: CategoryType;
   imageUrl: string; // Primary cover photo
-  images?: string[]; // Array of up to 5 showcase photos for the project
+  images?: string[]; // Array of up to 10 showcase photos for the project
   year: string;
   description?: string;
   aspectRatio?: 'landscape' | 'portrait' | 'square';
