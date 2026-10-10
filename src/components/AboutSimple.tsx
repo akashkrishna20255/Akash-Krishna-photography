@@ -59,18 +59,18 @@ export const AboutSimple = ({ aboutContent, isAdmin, onOpenAdmin }: AboutSimpleP
               </div>
 
               {/* Skills & Software Quick Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-6 border-t border-zinc-900 text-xs font-mono">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-900/50 text-xs font-mono">
                 <div>
-                  <span className="text-zinc-500 block mb-1">BRAND DESIGN</span>
-                  <span className="text-zinc-200">{aboutContent.skillBrand}</span>
+                  <span className="text-zinc-600 block mb-1">BRAND DESIGN</span>
+                  <span className="text-white">{aboutContent.skillBrand}</span>
                 </div>
                 <div>
-                  <span className="text-zinc-500 block mb-1">POST-PRODUCTION</span>
-                  <span className="text-zinc-200">{aboutContent.skillPost}</span>
+                  <span className="text-zinc-600 block mb-1">POST-PRODUCTION</span>
+                  <span className="text-white">{aboutContent.skillPost}</span>
                 </div>
                 <div>
-                  <span className="text-zinc-500 block mb-1">3D & MOTION</span>
-                  <span className="text-zinc-200">{aboutContent.skillMotion}</span>
+                  <span className="text-zinc-600 block mb-1">3D & MOTION</span>
+                  <span className="text-white">{aboutContent.skillMotion}</span>
                 </div>
               </div>
             </div>

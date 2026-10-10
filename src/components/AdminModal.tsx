@@ -1962,6 +1962,34 @@ export const AdminModal = ({
                         </div>
                       </div>
 
+                      {/* Skills Fields */}
+                      <div className="space-y-3">
+                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
+                          Skills & Software
+                        </label>
+                        <input
+                          type="text"
+                          value={aboutForm.skillBrand}
+                          onChange={(e) => setAboutForm({ ...aboutForm, skillBrand: e.target.value })}
+                          placeholder="Brand Design Skills (e.g., Figma, ...)"
+                          className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                        />
+                        <input
+                          type="text"
+                          value={aboutForm.skillPost}
+                          onChange={(e) => setAboutForm({ ...aboutForm, skillPost: e.target.value })}
+                          placeholder="Post-Production Skills (e.g., Premiere, ...)"
+                          className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                        />
+                        <input
+                          type="text"
+                          value={aboutForm.skillMotion}
+                          onChange={(e) => setAboutForm({ ...aboutForm, skillMotion: e.target.value })}
+                          placeholder="3D & Motion Skills (e.g., After Effects, ...)"
+                          className="w-full px-3 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded text-white"
+                        />
+                      </div>
+
                       <button
                         type="submit"
                         className="py-2.5 px-5 bg-white hover:bg-zinc-200 text-black font-semibold text-xs rounded uppercase font-mono cursor-pointer"
