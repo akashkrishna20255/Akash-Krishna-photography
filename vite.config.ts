@@ -54,14 +54,16 @@ function mockKvApiPlugin(): Plugin {
         if (pathname === '/api/photos') {
           if (req.method === 'GET') {
             res.statusCode = 200;
-            const photos = kvStore['photos'] || [];
+            const current = loadStore();
+            const photos = current['photos'] || kvStore['photos'] || [];
             return res.end(JSON.stringify(photos));
           }
           if (req.method === 'POST') {
-            let body = '';
-            req.on('data', (chunk: any) => { body += chunk; });
+            const chunks: any[] = [];
+            req.on('data', (chunk: any) => { chunks.push(chunk); });
             req.on('end', () => {
               try {
+                const body = Buffer.concat(chunks.map(c => Buffer.isBuffer(c) ? c : Buffer.from(c))).toString('utf-8');
                 const parsed = JSON.parse(body);
                 kvStore['photos'] = parsed;
                 if (Array.isArray(parsed) && parsed.length > 0) {
@@ -83,7 +85,8 @@ function mockKvApiPlugin(): Plugin {
         if (pathname.startsWith('/api/kv/')) {
           const key = decodeURIComponent(pathname.replace('/api/kv/', ''));
           if (req.method === 'GET') {
-            const val = kvStore[key];
+            const current = loadStore();
+            const val = current[key] ?? kvStore[key];
             if (val === undefined) {
               res.statusCode = 404;
               return res.end(JSON.stringify({ error: 'Key not found' }));
@@ -92,9 +95,10 @@ function mockKvApiPlugin(): Plugin {
             return res.end(typeof val === 'string' ? val : JSON.stringify(val));
           }
           if (req.method === 'POST' || req.method === 'PUT') {
-            let body = '';
-            req.on('data', (chunk: any) => { body += chunk; });
+            const chunks: any[] = [];
+            req.on('data', (chunk: any) => { chunks.push(chunk); });
             req.on('end', () => {
+              const body = Buffer.concat(chunks.map(c => Buffer.isBuffer(c) ? c : Buffer.from(c))).toString('utf-8');
               try {
                 kvStore[key] = JSON.parse(body);
               } catch {

@@ -128,10 +128,14 @@ export const useGalleryStore = () => {
     let isMounted = true;
     const initializeStore = async () => {
       // 1. Check IndexedDB for persisted photos (handles large payloads)
+      let initialLocalPhotos: GalleryPhoto[] = [];
       try {
         const storedPhotos = await loadPhotosLocally();
-        if (storedPhotos && storedPhotos.length > 0 && isMounted) {
-          setPhotos(storedPhotos);
+        if (storedPhotos && storedPhotos.length > 0) {
+          initialLocalPhotos = storedPhotos;
+          if (isMounted) {
+            setPhotos(storedPhotos);
+          }
         }
       } catch (err) {
         console.warn('Could not read photos from IndexedDB:', err);
@@ -144,7 +148,9 @@ export const useGalleryStore = () => {
           setSiteContent((prev) => ({
             ...prev,
             ...storedContent,
-            categories: storedContent.categories || prev.categories,
+            categories: storedContent.categories && storedContent.categories.length > 0
+              ? storedContent.categories
+              : prev.categories,
             allCategoryLabel: storedContent.allCategoryLabel || prev.allCategoryLabel
           }));
         }
@@ -155,21 +161,41 @@ export const useGalleryStore = () => {
         const res = await fetch('/api/photos');
         if (res.ok) {
           const serverData = await res.json();
-          if (Array.isArray(serverData) && serverData.length > 0 && isMounted) {
-            setPhotos(serverData);
-            persistPhotosLocally(serverData);
-          } else {
-            // If backend is empty, seed it with our current photos
-            setPhotos((current) => {
-              if (current && current.length > 0) {
-                fetch('/api/photos', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(current)
-                }).catch(() => {});
+          if (Array.isArray(serverData) && serverData.length > 0) {
+            // Intelligent reconciliation: NEVER wipe out user-created projects!
+            const currentLocal = (await loadPhotosLocally()) || initialLocalPhotos;
+            const hasCustomLocalPhotos = currentLocal.some(
+              (lp) => !serverData.some((sp: any) => sp.id === lp.id)
+            );
+
+            if (hasCustomLocalPhotos || currentLocal.length > serverData.length) {
+              // Local has user-created projects! Retain them and push them to backend
+              if (isMounted) {
+                setPhotos(currentLocal);
               }
-              return current;
-            });
+              await persistPhotosLocally(currentLocal);
+              fetch('/api/photos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentLocal)
+              }).catch(() => {});
+            } else {
+              // Server has all photos
+              if (isMounted) {
+                setPhotos(serverData);
+              }
+              await persistPhotosLocally(serverData);
+            }
+          } else {
+            // If backend is empty, seed it with our local photos
+            const currentLocal = (await loadPhotosLocally()) || initialLocalPhotos;
+            if (currentLocal && currentLocal.length > 0) {
+              fetch('/api/photos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentLocal)
+              }).catch(() => {});
+            }
           }
         }
       } catch {
@@ -327,8 +353,6 @@ export const useGalleryStore = () => {
     newAllLabel = 'All',
     renames: { from: string; to: string }[] = []
   ) => {
-    if (!isAdmin) return;
-
     // 1. Update siteContent
     const updatedContent: SiteContent = {
       ...siteContent,
@@ -342,8 +366,10 @@ export const useGalleryStore = () => {
     if (renames && renames.length > 0) {
       setPhotos((prev) => {
         const next = prev.map((p) => {
-          const match = renames.find((r) => r.from === p.category);
-          return match ? { ...p, category: match.to } : p;
+          const match = renames.find(
+            (r) => r.from.trim().toLowerCase() === p.category.trim().toLowerCase()
+          );
+          return match ? { ...p, category: match.to.trim() } : p;
         });
         persistPhotosLocally(next);
         fetch('/api/photos', {
@@ -364,7 +390,6 @@ export const useGalleryStore = () => {
   };
 
   const updateAllCategoryLabel = (label: string) => {
-    if (!isAdmin) return;
     const updatedContent: SiteContent = {
       ...siteContent,
       allCategoryLabel: label
@@ -374,84 +399,100 @@ export const useGalleryStore = () => {
   };
 
   // Photo CRUD Operations with Cloudflare KV /api/photos sync
-  const addPhoto = (photo: Omit<GalleryPhoto, 'id'>) => {
+  const addPhoto = async (photo: Omit<GalleryPhoto, 'id'>) => {
     const newPhoto: GalleryPhoto = {
       ...photo,
       id: `photo-${Date.now()}`
     };
-    setPhotos((prev) => {
-      const next = [newPhoto, ...prev];
-      persistPhotosLocally(next);
 
-      // Sync to Cloudflare Worker KV backend
-      fetch('/api/photos', {
+    const nextPhotos = [newPhoto, ...photos];
+    setPhotos(nextPhotos);
+
+    // Persist immediately to IndexedDB and LocalStorage
+    try {
+      await persistPhotosLocally(nextPhotos);
+    } catch (err) {
+      console.warn('Failed local persistence:', err);
+    }
+
+    // Sync to backend /api/photos
+    try {
+      await fetch('/api/photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next)
-      }).catch(() => {});
+        body: JSON.stringify(nextPhotos)
+      });
+    } catch (err) {
+      console.warn('Sync /api/photos failed:', err);
+    }
 
-      // Sync individual photo_1 key as requested (env.PHOTO_KV.put("photo_1", data))
-      fetch('/api/kv/photo_1', {
+    // Sync single photo_1 key as requested: env.PHOTO_KV.put("photo_1", data)
+    try {
+      await fetch('/api/kv/photo_1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newPhoto)
-      }).catch(() => {});
+      });
+    } catch (err) {}
 
-      return next;
-    });
     return newPhoto;
   };
 
-  const updatePhoto = (id: string, updatedFields: Partial<GalleryPhoto>): boolean => {
-    setPhotos((prev) => {
-      const next = prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p));
-      persistPhotosLocally(next);
+  const updatePhoto = async (id: string, updatedFields: Partial<GalleryPhoto>): Promise<boolean> => {
+    const nextPhotos = photos.map((p) => (p.id === id ? { ...p, ...updatedFields } : p));
+    setPhotos(nextPhotos);
 
-      const updatedPhoto = next.find((p) => p.id === id);
+    try {
+      await persistPhotosLocally(nextPhotos);
+    } catch (err) {
+      console.warn('Failed local persistence on update:', err);
+    }
 
-      // Sync full collection to Cloudflare Worker KV
-      fetch('/api/photos', {
-        method: 'POST',
+    const updatedPhoto = nextPhotos.find((p) => p.id === id);
+
+    fetch('/api/photos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextPhotos)
+    }).catch(() => {});
+
+    if (updatedPhoto) {
+      fetch(`/api/photos/${encodeURIComponent(id)}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next)
+        body: JSON.stringify(updatedPhoto)
       }).catch(() => {});
 
-      // Sync individual photo to Cloudflare Worker KV
-      if (updatedPhoto) {
-        fetch(`/api/photos/${encodeURIComponent(id)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedPhoto)
-        }).catch(() => {});
+      fetch('/api/kv/photo_1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPhoto)
+      }).catch(() => {});
+    }
 
-        // Also update photo_1 key
-        fetch('/api/kv/photo_1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedPhoto)
-        }).catch(() => {});
-      }
-
-      return next;
-    });
     return true;
   };
 
-  const deletePhoto = (id: string) => {
-    setPhotos((prev) => {
-      const next = prev.filter((p) => p.id !== id);
-      persistPhotosLocally(next);
+  const deletePhoto = async (id: string) => {
+    const nextPhotos = photos.filter((p) => p.id !== id);
+    setPhotos(nextPhotos);
 
-      // Sync collection and deletion to Cloudflare Worker KV
-      fetch('/api/photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next)
-      }).catch(() => {});
+    try {
+      await persistPhotosLocally(nextPhotos);
+    } catch (err) {
+      console.warn('Failed local persistence on delete:', err);
+    }
 
-      fetch(`/api/photos/${encodeURIComponent(id)}`, {
-        method: 'DELETE'
-      }).catch(() => {});
+    fetch('/api/photos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextPhotos)
+    }).catch(() => {});
+
+    fetch(`/api/photos/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    }).catch(() => {});
+  };
 
       return next;
     });

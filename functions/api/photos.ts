@@ -39,8 +39,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   const { request, env } = context;
   if (!env.PHOTO_KV) {
     return new Response(
-      JSON.stringify({ error: 'PHOTO_KV binding not configured' }),
-      { status: 500, headers: CORS_HEADERS }
+      JSON.stringify({
+        success: false,
+        warning: 'PHOTO_KV binding not configured yet in Cloudflare Pages. Browser IndexedDB stores data safely.'
+      }),
+      { status: 200, headers: CORS_HEADERS }
     );
   }
 

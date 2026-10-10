@@ -117,7 +117,10 @@ export default {
         // SAVE ALL / BULK: env.PHOTO_KV.put("photos", data) and env.PHOTO_KV.put("photo_1", ...)
         if (request.method === 'POST') {
           if (!env.PHOTO_KV) {
-            return jsonResponse({ error: 'PHOTO_KV binding not configured' }, 500);
+            return jsonResponse({
+              success: false,
+              warning: 'PHOTO_KV binding not yet configured in Cloudflare. Client-side IndexedDB will retain changes.'
+            }, 200);
           }
           const body = await request.json();
 
