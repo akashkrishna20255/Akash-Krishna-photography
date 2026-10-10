@@ -494,10 +494,6 @@ export const useGalleryStore = () => {
     }).catch(() => {});
   };
 
-      return next;
-    });
-  };
-
   const resetToDefaultPhotos = () => {
     if (!isAdmin) return;
     setPhotos(DEFAULT_PHOTOS);
