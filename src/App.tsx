@@ -15,9 +15,10 @@ import { GalleryPhoto } from './types/gallery';
 export default function App() {
   const {
     photos,
-    adminKey,
     adminEmail,
     isAdmin,
+    failedAttempts,
+    lockoutUntil,
     addPhoto,
     updatePhoto,
     deletePhoto,
@@ -25,8 +26,7 @@ export default function App() {
     login,
     logout,
     sendEmailResetCode,
-    verifyAndResetKey,
-    setAdminEmail
+    verifyAndResetKey
   } = useGalleryStore();
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -100,14 +100,15 @@ export default function App() {
         />
       )}
 
-      {/* Admin Panel Modal (Login, Email Key Reset, Upload New Photos, Settings) */}
+      {/* Admin Panel Modal (Secure Login, Strict Email Reset, Photo Updates) */}
       <AdminModal
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
         isAdmin={isAdmin}
         adminEmail={adminEmail}
-        adminKey={adminKey}
         photos={photos}
+        failedAttempts={failedAttempts}
+        lockoutUntil={lockoutUntil}
         onLogin={login}
         onLogout={logout}
         onSendResetCode={sendEmailResetCode}
@@ -119,7 +120,6 @@ export default function App() {
           setEditingPhoto(photo);
         }}
         onResetToDefault={resetToDefaultPhotos}
-        onUpdateEmail={setAdminEmail}
       />
 
       {/* Direct Photo Edit Modal */}
