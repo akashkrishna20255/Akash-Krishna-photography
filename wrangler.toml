@@ -16,7 +16,7 @@ binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "PHOTO_KV"
-id = "df95a8170bfdc8f75cb38396bcc63fa1"
+id = "72d66997d3e04ddcb34299f4ab001564"
 
 # NOTE: If deploying via Cloudflare Pages (Pages Dashboard):
 # Go to: Settings > Functions > KV namespace bindings > Add binding:
