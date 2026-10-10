@@ -1,14 +1,20 @@
 import { useState } from 'react';
 import { GalleryPhoto, CategoryType } from '../types/gallery';
-import { Plus, Edit2, Trash2, Maximize2, LayoutGrid, Columns, Rows } from 'lucide-react';
+import { Plus, Edit2, Trash2, Maximize2, LayoutGrid, Columns, Rows, Layers } from 'lucide-react';
 
 interface GalleryGridProps {
   photos: GalleryPhoto[];
   isAdmin: boolean;
+  galleryContent?: {
+    badge: string;
+    title: string;
+    subtitle: string;
+  };
   onSelectPhoto: (photo: GalleryPhoto, index: number) => void;
   onEditPhoto: (photo: GalleryPhoto) => void;
   onDeletePhoto: (id: string) => void;
   onOpenAddModal: () => void;
+  onOpenAdminText?: () => void;
 }
 
 const CATEGORIES: CategoryType[] = [
@@ -24,10 +30,12 @@ type ViewLayout = 'grid3' | 'grid2' | 'feed';
 export const GalleryGrid = ({
   photos,
   isAdmin,
+  galleryContent,
   onSelectPhoto,
   onEditPhoto,
   onDeletePhoto,
-  onOpenAddModal
+  onOpenAddModal,
+  onOpenAdminText
 }: GalleryGridProps) => {
   const [activeCategory, setActiveCategory] = useState<CategoryType>('All');
   const [layout, setLayout] = useState<ViewLayout>('grid3');
@@ -37,20 +45,36 @@ export const GalleryGrid = ({
     return photo.category === activeCategory;
   });
 
+  const displayBadge = galleryContent?.badge || 'PORTFOLIO GALLERY';
+  const displayTitle = galleryContent?.title || 'Work Showcase';
+  const displaySubtitle = galleryContent?.subtitle || `Showing ${filteredPhotos.length} of ${photos.length} projects. Click any project to view all 5 showcase photographs and case details.`;
+
   return (
     <section id="gallery" className="py-20 lg:py-28 bg-black border-b border-zinc-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         {/* Gallery Controls Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-            <div className="text-xs uppercase tracking-widest text-zinc-500 font-mono mb-2">
-              Portfolio Gallery
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xs uppercase tracking-widest text-zinc-500 font-mono">
+                {displayBadge}
+              </span>
+              {isAdmin && onOpenAdminText && (
+                <button
+                  onClick={onOpenAdminText}
+                  className="text-xs font-mono text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                  title="Edit Gallery Title & Description"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  <span>Edit Gallery Text</span>
+                </button>
+              )}
             </div>
             <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white font-sans uppercase">
-              Selected Works
+              {displayTitle}
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 font-light mt-1 max-w-md">
-              Showing {filteredPhotos.length} of {photos.length} projects. Click any project to view high-resolution details.
+            <p className="text-xs sm:text-sm text-zinc-400 font-light mt-1 max-w-xl">
+              {displaySubtitle}
             </p>
           </div>
 
@@ -128,10 +152,10 @@ export const GalleryGrid = ({
                 <Plus className="w-7 h-7" />
               </div>
               <span className="text-base font-bold text-white group-hover:text-amber-400 transition-colors uppercase tracking-wider font-mono">
-                + Add Photo / Work
+                + Add Project (5 Photos)
               </span>
               <p className="text-xs text-zinc-500 font-mono mt-1 max-w-xs">
-                Upload image file or paste URL with category & title
+                Upload all 5 showcase photos to present the full project
               </p>
             </div>
           )}
@@ -179,6 +203,13 @@ export const GalleryGrid = ({
                 <div className="absolute top-4 left-4 bg-black/75 backdrop-blur-md px-3 py-1 rounded-md text-[11px] font-mono text-zinc-300 border border-zinc-800">
                   {photo.category}
                 </div>
+
+                {/* Showcase count badge in top right if multiple photos */}
+                {photo.images && photo.images.length > 1 && (
+                  <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-mono text-amber-400 border border-zinc-800 flex items-center gap-1 shadow-md">
+                    <span>{photo.images.length} Photos</span>
+                  </div>
+                )}
               </div>
 
               {/* Text & Meta Information */}

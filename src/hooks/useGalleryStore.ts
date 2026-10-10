@@ -44,6 +44,7 @@ export const useGalleryStore = () => {
             ...DEFAULT_SITE_CONTENT,
             ...parsed,
             hero: { ...DEFAULT_SITE_CONTENT.hero, ...parsed.hero },
+            gallery: { ...DEFAULT_SITE_CONTENT.gallery, ...(parsed.gallery || {}) },
             about: { ...DEFAULT_SITE_CONTENT.about, ...parsed.about },
             contact: {
               ...DEFAULT_SITE_CONTENT.contact,
@@ -146,6 +147,14 @@ export const useGalleryStore = () => {
     setSiteContent((prev) => ({
       ...prev,
       hero: { ...prev.hero, ...newHero }
+    }));
+  };
+
+  const updateGalleryContent = (newGallery: Partial<SiteContent['gallery']>) => {
+    if (!isAdmin) return;
+    setSiteContent((prev) => ({
+      ...prev,
+      gallery: { ...prev.gallery, ...newGallery }
     }));
   };
 
@@ -423,6 +432,7 @@ export const useGalleryStore = () => {
     resetToDefaultPhotos,
     updateSiteContent,
     updateHeroContent,
+    updateGalleryContent,
     updateAboutContent,
     updateContactContent,
     updateLayoutContent,

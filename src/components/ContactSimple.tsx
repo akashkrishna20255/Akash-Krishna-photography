@@ -79,7 +79,7 @@ export const ContactSimple = ({ contactContent, isAdmin, onOpenAdmin }: ContactS
               {/* Direct Email Card */}
               <div className="p-6 rounded-2xl bg-zinc-950 border border-zinc-800/80 mb-6 shadow-xl">
                 <span className="text-[11px] font-mono uppercase text-zinc-500 block mb-1">
-                  Direct Inquiries & Commissions
+                  {contactContent.directTitle || 'Direct Inquiries & Collaboration'}
                 </span>
                 <div className="flex items-center justify-between gap-4">
                   <a

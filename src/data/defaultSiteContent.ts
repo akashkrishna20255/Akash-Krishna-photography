@@ -9,7 +9,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     bio: 'Hello, I am Akash Krishna. I craft minimalist brand identities, tactile editorial publications, and cinematic video edits with an obsession for light, structure, and emotional pacing.',
     showFullscreenBg: false,
     fullscreenBgUrl: '/src/assets/images/project_cinema_reel_1791613644291.jpg',
-    bgOverlayOpacity: 75
+    bgOverlayOpacity: 75,
+    heroLayout: 'minimal'
+  },
+  gallery: {
+    badge: 'PORTFOLIO GALLERY',
+    title: 'Work Showcase',
+    subtitle: 'High-resolution project highlights. Click any project to view all 5 showcase photographs and case details.'
   },
   about: {
     badge: 'BIOGRAPHY',
@@ -59,6 +65,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     subtext: 'Have a brand identity to establish, a film edit that needs precise tempo, or an editorial publication? Share your scope below.',
     email: 'akashkrishna67@gmail.com',
     availabilityText: 'Available Globally (Remote & On-Site)',
+    directTitle: 'Direct Inquiries & Collaboration',
     socialLinks: [
       { id: 'soc-1', name: 'Behance', url: 'https://behance.net' },
       { id: 'soc-2', name: 'Vimeo', url: 'https://vimeo.com' },

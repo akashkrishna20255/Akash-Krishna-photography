@@ -4,7 +4,8 @@ export interface GalleryPhoto {
   id: string;
   title: string;
   category: CategoryType;
-  imageUrl: string;
+  imageUrl: string; // Primary cover photo
+  images?: string[]; // Array of up to 5 showcase photos for the project
   year: string;
   description?: string;
   aspectRatio?: 'landscape' | 'portrait' | 'square';
@@ -33,6 +34,12 @@ export interface SiteContent {
     showFullscreenBg: boolean;
     fullscreenBgUrl: string;
     bgOverlayOpacity: number; // 0 to 100
+    heroLayout?: 'minimal' | 'cinematic-bg' | 'split';
+  };
+  gallery: {
+    badge: string;
+    title: string;
+    subtitle: string;
   };
   about: {
     badge: string;
@@ -57,6 +64,7 @@ export interface SiteContent {
     subtext: string;
     email: string;
     availabilityText: string;
+    directTitle?: string;
     socialLinks: SocialLink[];
   };
   layout: {

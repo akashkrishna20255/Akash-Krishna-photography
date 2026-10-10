@@ -25,6 +25,7 @@ export default function App() {
     deletePhoto,
     resetToDefaultPhotos,
     updateHeroContent,
+    updateGalleryContent,
     updateAboutContent,
     updateContactContent,
     updateLayoutContent,
@@ -87,10 +88,12 @@ export default function App() {
         <GalleryGrid
           photos={photos}
           isAdmin={isAdmin}
+          galleryContent={siteContent.gallery}
           onSelectPhoto={(photo, index) => setLightboxIndex(index)}
           onEditPhoto={(photo) => setEditingPhoto(photo)}
           onDeletePhoto={(id) => deletePhoto(id)}
           onOpenAddModal={() => handleOpenAdminWithTab('add')}
+          onOpenAdminText={() => handleOpenAdminWithTab('content')}
         />
 
         {/* Areas of Expertise / Services Strip (Configurable via Admin) */}
@@ -157,6 +160,7 @@ export default function App() {
         }}
         onResetToDefault={resetToDefaultPhotos}
         onUpdateHero={updateHeroContent}
+        onUpdateGallery={updateGalleryContent}
         onUpdateAbout={updateAboutContent}
         onUpdateContact={updateContactContent}
         onUpdateLayout={updateLayoutContent}
