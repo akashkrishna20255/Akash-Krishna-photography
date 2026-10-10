@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { GalleryPhoto, CategoryType } from '../types/gallery';
-import { Plus, Edit2, Trash2, Maximize2, LayoutGrid, Columns, Rows, Layers } from 'lucide-react';
+import { Plus, Edit2, Edit3, Trash2, Maximize2, LayoutGrid, Columns, Rows, Layers } from 'lucide-react';
+import { CategoryEditModal } from './CategoryEditModal';
 
 interface GalleryGridProps {
   photos: GalleryPhoto[];
   isAdmin: boolean;
+  categories?: string[];
+  allCategoryLabel?: string;
+  onUpdateCategories?: (newCategories: string[], newAllLabel: string, renames: { from: string; to: string }[]) => void;
   galleryContent?: {
     badge: string;
     title: string;
@@ -17,19 +21,14 @@ interface GalleryGridProps {
   onOpenAdminText?: () => void;
 }
 
-const CATEGORIES: CategoryType[] = [
-  'All',
-  'Visual Design',
-  'Film & Motion',
-  'Photography',
-  'Editorial'
-];
-
 type ViewLayout = 'grid3' | 'grid2' | 'feed';
 
 export const GalleryGrid = ({
   photos,
   isAdmin,
+  categories = ['Visual Design', 'Film & Motion', 'Photography', 'Editorial'],
+  allCategoryLabel = 'All',
+  onUpdateCategories,
   galleryContent,
   onSelectPhoto,
   onEditPhoto,
@@ -39,15 +38,30 @@ export const GalleryGrid = ({
 }: GalleryGridProps) => {
   const [activeCategory, setActiveCategory] = useState<CategoryType>('All');
   const [layout, setLayout] = useState<ViewLayout>('grid3');
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+
+  const displayCategories = categories && categories.length > 0
+    ? categories
+    : ['Visual Design', 'Film & Motion', 'Photography', 'Editorial'];
+
+  const displayAllLabel = allCategoryLabel || 'All';
+
+  // Calculate photo counts per category for the editor
+  const photoCounts: Record<string, number> = {};
+  displayCategories.forEach((cat) => {
+    photoCounts[cat] = photos.filter(
+      (p) => p.category.toLowerCase() === cat.toLowerCase()
+    ).length;
+  });
 
   const filteredPhotos = photos.filter((photo) => {
     if (activeCategory === 'All') return true;
-    return photo.category === activeCategory;
+    return photo.category.toLowerCase() === activeCategory.toLowerCase();
   });
 
   const displayBadge = galleryContent?.badge || 'PORTFOLIO GALLERY';
   const displayTitle = galleryContent?.title || 'Work Showcase';
-  const displaySubtitle = galleryContent?.subtitle || `Showing ${filteredPhotos.length} of ${photos.length} projects. Click any project to view all 5 showcase photographs and case details.`;
+  const displaySubtitle = galleryContent?.subtitle || `Showing ${filteredPhotos.length} of ${photos.length} projects. Click any project to view all 10 showcase photographs and case details.`;
 
   return (
     <section id="gallery" className="py-20 lg:py-28 bg-black border-b border-zinc-900">
@@ -82,12 +96,26 @@ export const GalleryGrid = ({
           <div className="flex flex-wrap items-center gap-3">
             {/* Category Filter Tabs */}
             <div className="flex flex-wrap items-center gap-1 p-1 bg-zinc-950 border border-zinc-800 rounded-lg">
-              {CATEGORIES.map((cat) => (
+              {/* All / Overview Tab */}
+              <button
+                key="all-tab"
+                onClick={() => setActiveCategory('All')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                  activeCategory === 'All'
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+              >
+                {displayAllLabel}
+              </button>
+
+              {/* Dynamic Category Tabs */}
+              {displayCategories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer whitespace-nowrap ${
-                    activeCategory === cat
+                    activeCategory.toLowerCase() === cat.toLowerCase()
                       ? 'bg-white text-black font-semibold shadow-sm'
                       : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
                   }`}
@@ -95,6 +123,18 @@ export const GalleryGrid = ({
                   {cat}
                 </button>
               ))}
+
+              {/* Edit Categories Button for Admin */}
+              {isAdmin && onUpdateCategories && (
+                <button
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="px-2.5 py-1.5 text-xs font-mono text-amber-400 hover:text-amber-300 hover:bg-amber-400/10 rounded-md transition-colors cursor-pointer flex items-center gap-1.5 ml-1 border border-amber-500/30"
+                  title="Edit Category Names & Filters"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span className="font-semibold">Edit Tabs</span>
+                </button>
+              )}
             </div>
 
             {/* View Mode Switcher (Hostinger style layout toggle) */}
@@ -289,6 +329,20 @@ export const GalleryGrid = ({
           </div>
         )}
       </div>
+
+      {/* Category Editor Modal for Admin */}
+      {isAdmin && onUpdateCategories && (
+        <CategoryEditModal
+          isOpen={isCategoryModalOpen}
+          onClose={() => setIsCategoryModalOpen(false)}
+          categories={displayCategories}
+          allLabel={displayAllLabel}
+          onSave={(newCats, newAll, renames) => {
+            onUpdateCategories(newCats, newAll, renames);
+          }}
+          photoCounts={photoCounts}
+        />
+      )}
     </section>
   );
 };

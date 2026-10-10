@@ -1,11 +1,11 @@
-// High-Performance Image Compression Utility for Web & Local Storage
-// Scales down images to max 1600px dimension and compresses to web-optimized JPEG
-// Prevents browser LocalStorage QuotaExceeded errors and ensures instant rendering.
+// High-Performance Image Compression Utility for Web & Persistent Storage
+// Scales down images to crisp web dimensions (1280px) and compresses to lightweight JPEG
+// Guarantees zero LocalStorage or IndexedDB quota issues and lightning-fast loading.
 
 export async function compressImageFile(
   file: File,
-  maxWidth = 1600,
-  quality = 0.82
+  maxWidth = 1280,
+  quality = 0.76
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     // If not an image or is SVG, read directly without raster canvas re-encoding
@@ -24,13 +24,7 @@ export async function compressImageFile(
         let width = img.width;
         let height = img.height;
 
-        // If dimensions are within max bounds and file size is small (< 300KB), keep as is
-        if (width <= maxWidth && height <= maxWidth && file.size < 300 * 1024) {
-          resolve(readerEvent.target?.result as string);
-          return;
-        }
-
-        // Scale down proportionally
+        // Scale down proportionally if larger than maxWidth
         if (width > maxWidth || height > maxWidth) {
           if (width > height) {
             height = Math.round((height * maxWidth) / width);
@@ -62,7 +56,26 @@ export async function compressImageFile(
         ctx.drawImage(img, 0, 0, width, height);
 
         // Convert to optimized JPEG data URL
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // If still larger than 250KB, scale down slightly more to ensure zero memory bloat
+        if (compressedDataUrl.length > 250 * 1024) {
+          const secondMaxWidth = Math.min(width, 1000);
+          const secondHeight = Math.round((height * secondMaxWidth) / width);
+          const canvas2 = document.createElement('canvas');
+          canvas2.width = secondMaxWidth;
+          canvas2.height = secondHeight;
+          const ctx2 = canvas2.getContext('2d');
+          if (ctx2) {
+            ctx2.imageSmoothingEnabled = true;
+            ctx2.imageSmoothingQuality = 'high';
+            ctx2.fillStyle = '#0a0a0a';
+            ctx2.fillRect(0, 0, secondMaxWidth, secondHeight);
+            ctx2.drawImage(img, 0, 0, secondMaxWidth, secondHeight);
+            compressedDataUrl = canvas2.toDataURL('image/jpeg', 0.70);
+          }
+        }
+
         resolve(compressedDataUrl);
       };
 

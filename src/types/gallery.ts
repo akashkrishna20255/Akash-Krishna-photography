@@ -1,4 +1,4 @@
-export type CategoryType = 'All' | 'Visual Design' | 'Film & Motion' | 'Photography' | 'Editorial';
+export type CategoryType = string;
 
 export interface GalleryPhoto {
   id: string;
@@ -25,6 +25,8 @@ export interface SocialLink {
 }
 
 export interface SiteContent {
+  categories?: string[]; // Dynamic customizable categories e.g. ['Visual Design', 'Film & Motion', 'Photography', 'Editorial']
+  allCategoryLabel?: string; // Customizable label for "All" tab (default "All")
   hero: {
     name: string;
     tagline: string;

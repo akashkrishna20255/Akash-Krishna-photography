@@ -16,6 +16,8 @@ export default function App() {
   const {
     photos,
     siteContent,
+    categories,
+    allCategoryLabel,
     adminEmail,
     isAdmin,
     failedAttempts,
@@ -23,6 +25,8 @@ export default function App() {
     addPhoto,
     updatePhoto,
     deletePhoto,
+    updateCategories,
+    updateAllCategoryLabel,
     resetToDefaultPhotos,
     updateHeroContent,
     updateGalleryContent,
@@ -88,6 +92,9 @@ export default function App() {
         <GalleryGrid
           photos={photos}
           isAdmin={isAdmin}
+          categories={categories}
+          allCategoryLabel={allCategoryLabel}
+          onUpdateCategories={updateCategories}
           galleryContent={siteContent.gallery}
           onSelectPhoto={(photo, index) => setLightboxIndex(index)}
           onEditPhoto={(photo) => setEditingPhoto(photo)}
@@ -145,6 +152,9 @@ export default function App() {
         adminEmail={adminEmail}
         photos={photos}
         siteContent={siteContent}
+        categories={categories}
+        allCategoryLabel={allCategoryLabel}
+        onUpdateCategories={updateCategories}
         failedAttempts={failedAttempts}
         lockoutUntil={lockoutUntil}
         initialTab={adminModalInitialTab}
@@ -176,6 +186,7 @@ export default function App() {
       {/* Direct Photo Edit Modal */}
       <PhotoEditModal
         photo={editingPhoto}
+        categories={categories}
         onClose={() => setEditingPhoto(null)}
         onSave={(id, updated) => updatePhoto(id, updated)}
       />

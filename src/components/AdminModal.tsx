@@ -38,6 +38,9 @@ interface AdminModalProps {
   adminEmail: string;
   photos: GalleryPhoto[];
   siteContent: SiteContent;
+  categories?: string[];
+  allCategoryLabel?: string;
+  onUpdateCategories?: (newCategories: string[], newAllLabel: string, renames: { from: string; to: string }[]) => void;
   failedAttempts: number;
   lockoutUntil: number;
   initialTab?: 'add' | 'manage' | 'content' | 'layout' | 'settings';
@@ -88,6 +91,9 @@ export const AdminModal = ({
   adminEmail,
   photos,
   siteContent,
+  categories = ['Visual Design', 'Film & Motion', 'Photography', 'Editorial'],
+  allCategoryLabel = 'All',
+  onUpdateCategories,
   failedAttempts,
   lockoutUntil,
   initialTab = 'add',
@@ -117,7 +123,7 @@ export const AdminModal = ({
   // View state: 'login' | 'request-reset' | 'enter-new-key'
   const [authView, setAuthView] = useState<'login' | 'request-reset' | 'enter-new-key'>('login');
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'content' | 'layout' | 'settings'>(initialTab);
-  const [contentSubTab, setContentSubTab] = useState<'hero' | 'gallery' | 'about' | 'services' | 'contact' | 'socials'>('socials');
+  const [contentSubTab, setContentSubTab] = useState<'hero' | 'gallery' | 'about' | 'services' | 'contact' | 'socials'>('gallery');
 
   // Login inputs - NO HINTS OR DEFAULT DISPLAY
   const [inputKey, setInputKey] = useState('');
@@ -155,18 +161,28 @@ export const AdminModal = ({
 
   // Up to 10 Showcase Photo slots state for Add Work
   const [newTitle, setNewTitle] = useState('');
-  const [newCategory, setNewCategory] = useState<CategoryType>('Visual Design');
+  const [newCategory, setNewCategory] = useState<CategoryType>(categories[0] || 'Visual Design');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [newPhotoSlots, setNewPhotoSlots] = useState<string[]>(['', '', '', '', '', '', '', '', '', '']);
   const [newYear, setNewYear] = useState('2026');
   const [newDescription, setNewDescription] = useState('');
   const [addSuccess, setAddSuccess] = useState(false);
+  const [addPhotoError, setAddPhotoError] = useState('');
+
+  // Editable Categories state in Content tab
+  const [adminCategories, setAdminCategories] = useState<string[]>([...categories]);
+  const [adminAllLabel, setAdminAllLabel] = useState(allCategoryLabel || 'All');
+  const [newAdminCatInput, setNewAdminCatInput] = useState('');
+  const [catSavedMsg, setCatSavedMsg] = useState('');
+  const [catErrorMsg, setCatErrorMsg] = useState('');
 
   // Editable Form States for Site Content
   const [heroForm, setHeroForm] = useState({ ...siteContent.hero });
   const [galleryForm, setGalleryForm] = useState({
     badge: siteContent.gallery?.badge || 'PORTFOLIO GALLERY',
     title: siteContent.gallery?.title || 'Work Showcase',
-    subtitle: siteContent.gallery?.subtitle || 'High-resolution project highlights. Click any project to view all 5 showcase photographs and case details.'
+    subtitle: siteContent.gallery?.subtitle || 'High-resolution project highlights. Click any project to view all 10 showcase photographs and case details.'
   });
   const [aboutForm, setAboutForm] = useState({ ...siteContent.about });
   const [contactForm, setContactForm] = useState({
@@ -185,7 +201,7 @@ export const AdminModal = ({
   const [newSocialName, setNewSocialName] = useState('');
   const [newSocialUrl, setNewSocialUrl] = useState('');
 
-  // Sync state if siteContent changes
+  // Sync state if siteContent or categories change
   useEffect(() => {
     setHeroForm({ ...siteContent.hero });
     if (siteContent.gallery) {
@@ -198,6 +214,14 @@ export const AdminModal = ({
     });
     setLayoutForm({ ...siteContent.layout });
   }, [siteContent]);
+
+  useEffect(() => {
+    setAdminCategories([...categories]);
+    setAdminAllLabel(allCategoryLabel || 'All');
+    if (!categories.includes(newCategory) && categories.length > 0) {
+      setNewCategory(categories[0]);
+    }
+  }, [categories, allCategoryLabel]);
 
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -359,20 +383,38 @@ export const AdminModal = ({
   // Handle Add Photo with up to 10 showcase slots
   const handleAddPhotoSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    setAddPhotoError('');
+
+    if (!newTitle.trim()) {
+      setAddPhotoError('Please provide a project title.');
+      return;
+    }
 
     // Filter valid slots
     const validImages = newPhotoSlots.filter((u) => u.trim().length > 0);
     if (validImages.length === 0) {
-      alert('Please provide at least 1 image for the project (Photo 1 - Main Cover).');
+      setAddPhotoError('Please provide at least 1 image for the project (Photo 1 - Main Cover).');
       return;
     }
 
     const coverImage = validImages[0];
+    const finalCategory = isCustomCategory ? customCategoryInput.trim() : newCategory;
+
+    if (!finalCategory) {
+      setAddPhotoError('Please specify a category for the project.');
+      return;
+    }
+
+    // If custom category, add to categories list automatically
+    if (isCustomCategory && customCategoryInput.trim() && onUpdateCategories) {
+      if (!categories.includes(customCategoryInput.trim())) {
+        onUpdateCategories([...categories, customCategoryInput.trim()], allCategoryLabel || 'All', []);
+      }
+    }
 
     onAddPhoto({
       title: newTitle.trim(),
-      category: newCategory,
+      category: finalCategory,
       imageUrl: coverImage,
       images: validImages,
       year: newYear.trim() || '2026',
@@ -383,8 +425,61 @@ export const AdminModal = ({
     setNewTitle('');
     setNewPhotoSlots(['', '', '', '', '', '', '', '', '', '']);
     setNewDescription('');
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
 
     setTimeout(() => setAddSuccess(false), 3000);
+  };
+
+  // Category Manager Handlers in Content Tab
+  const handleAddAdminCategory = () => {
+    const trimmed = newAdminCatInput.trim();
+    if (!trimmed) return;
+    if (adminCategories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      setCatErrorMsg(`Category "${trimmed}" already exists.`);
+      return;
+    }
+    setAdminCategories((prev) => [...prev, trimmed]);
+    setNewAdminCatInput('');
+    setCatErrorMsg('');
+  };
+
+  const handleDeleteAdminCategory = (idx: number) => {
+    if (adminCategories.length <= 1) {
+      setCatErrorMsg('You must have at least 1 category.');
+      return;
+    }
+    setAdminCategories((prev) => prev.filter((_, i) => i !== idx));
+    setCatErrorMsg('');
+  };
+
+  const handleSaveAdminCategories = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCatErrorMsg('');
+    const cleaned = adminCategories.map((c) => c.trim()).filter(Boolean);
+    if (cleaned.length === 0) {
+      setCatErrorMsg('Please have at least 1 valid category.');
+      return;
+    }
+    const unique = new Set(cleaned.map((c) => c.toLowerCase()));
+    if (unique.size !== cleaned.length) {
+      setCatErrorMsg('Category names must be unique.');
+      return;
+    }
+
+    const renames: { from: string; to: string }[] = [];
+    categories.forEach((orig, idx) => {
+      if (cleaned[idx] && cleaned[idx] !== orig) {
+        renames.push({ from: orig, to: cleaned[idx] });
+      }
+    });
+
+    if (onUpdateCategories) {
+      onUpdateCategories(cleaned, adminAllLabel.trim() || 'All', renames);
+    }
+
+    setCatSavedMsg('Category tabs updated and synced successfully!');
+    setTimeout(() => setCatSavedMsg(''), 3000);
   };
 
   // Save Hero Edits
@@ -901,6 +996,13 @@ export const AdminModal = ({
                     </div>
                   )}
 
+                  {addPhotoError && (
+                    <div className="mb-4 p-3.5 rounded-lg bg-red-950/80 border border-red-800 text-red-200 text-xs flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4 shrink-0 text-red-400" />
+                      <span>{addPhotoError}</span>
+                    </div>
+                  )}
+
                   <form onSubmit={handleAddPhotoSubmit} className="space-y-5">
                     {/* Up to 10-Photo Showcase Slots */}
                     <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-3">
@@ -997,22 +1099,62 @@ export const AdminModal = ({
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-mono uppercase text-zinc-400 mb-1.5">
-                          Category
-                        </label>
-                        <select
-                          value={newCategory}
-                          onChange={(e) => setNewCategory(e.target.value as CategoryType)}
-                          className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-200 focus:outline-none focus:border-white"
-                        >
-                          {CATEGORIES.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-mono uppercase text-zinc-400">
+                            Category
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomCategory(!isCustomCategory)}
+                            className="text-[11px] font-mono text-amber-400 hover:text-amber-300 underline cursor-pointer"
+                          >
+                            {isCustomCategory ? 'Choose from list' : '+ Custom Category'}
+                          </button>
+                        </div>
+
+                        {!isCustomCategory ? (
+                          <select
+                            value={newCategory}
+                            onChange={(e) => {
+                              if (e.target.value === '__NEW__') {
+                                setIsCustomCategory(true);
+                              } else {
+                                setNewCategory(e.target.value);
+                              }
+                            }}
+                            className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-200 focus:outline-none focus:border-white cursor-pointer"
+                          >
+                            {categories.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                            <option value="__NEW__">+ Add Custom Category...</option>
+                          </select>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={customCategoryInput}
+                              onChange={(e) => setCustomCategoryInput(e.target.value)}
+                              placeholder="e.g. 3D Spatial Design"
+                              required
+                              className="flex-1 px-3.5 py-2.5 text-xs bg-zinc-900 border border-amber-500/50 rounded-lg text-zinc-200 focus:outline-none focus:border-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCustomCategory(false);
+                                setCustomCategoryInput('');
+                              }}
+                              className="px-2.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded font-mono cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1437,6 +1579,117 @@ export const AdminModal = ({
                       >
                         Save Gallery Texts
                       </button>
+
+                      {/* PORTFOLIO CATEGORIES & FILTER TABS TEXT EDITOR */}
+                      <div className="pt-6 border-t border-zinc-800 space-y-4">
+                        <div>
+                          <h4 className="text-sm font-bold text-white uppercase mb-1 flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-amber-400" />
+                            <span>Portfolio Category Filter Tabs (Text Edit & Manage)</span>
+                          </h4>
+                          <p className="text-xs text-zinc-400">
+                            Edit category tab texts, rename categories, or add new categories. Renaming automatically preserves existing projects.
+                          </p>
+                        </div>
+
+                        {catErrorMsg && (
+                          <div className="p-3 bg-red-950/60 border border-red-800 rounded-lg text-red-200 text-xs">
+                            {catErrorMsg}
+                          </div>
+                        )}
+
+                        {catSavedMsg && (
+                          <div className="p-3 bg-emerald-950/60 border border-emerald-800 rounded-lg text-emerald-200 text-xs flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <span>{catSavedMsg}</span>
+                          </div>
+                        )}
+
+                        <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl space-y-3">
+                          <div>
+                            <label className="block text-xs font-mono uppercase text-zinc-400 mb-1">
+                              All Projects Tab Label
+                            </label>
+                            <input
+                              type="text"
+                              value={adminAllLabel}
+                              onChange={(e) => setAdminAllLabel(e.target.value)}
+                              placeholder="All"
+                              className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded text-white font-mono"
+                            />
+                          </div>
+
+                          <div className="space-y-2 pt-2">
+                            <label className="block text-xs font-mono uppercase text-zinc-400">
+                              Active Categories ({adminCategories.length})
+                            </label>
+                            {adminCategories.map((cat, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2 p-2 bg-zinc-950 border border-zinc-800/80 rounded-lg"
+                              >
+                                <span className="w-6 text-center text-xs font-mono text-zinc-500 font-bold shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <input
+                                  type="text"
+                                  value={cat}
+                                  onChange={(e) => {
+                                    const updated = [...adminCategories];
+                                    updated[idx] = e.target.value;
+                                    setAdminCategories(updated);
+                                  }}
+                                  className="flex-1 px-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded text-white focus:outline-none focus:border-amber-400"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAdminCategory(idx)}
+                                  className="p-1.5 text-zinc-500 hover:text-red-400 rounded cursor-pointer shrink-0"
+                                  title="Delete Category"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-2">
+                            <input
+                              type="text"
+                              value={newAdminCatInput}
+                              onChange={(e) => setNewAdminCatInput(e.target.value)}
+                              placeholder="New category name..."
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddAdminCategory();
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddAdminCategory}
+                              disabled={!newAdminCatInput.trim()}
+                              className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white rounded text-xs font-mono cursor-pointer flex items-center gap-1 shrink-0"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add</span>
+                            </button>
+                          </div>
+
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={handleSaveAdminCategories}
+                              className="py-2.5 px-5 bg-amber-400 hover:bg-amber-300 text-black font-semibold text-xs rounded uppercase font-mono cursor-pointer flex items-center gap-2 shadow"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Save Category Tabs</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </form>
                   )}
 

@@ -1,6 +1,8 @@
 import { SiteContent } from '../types/gallery';
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
+  categories: ['Visual Design', 'Film & Motion', 'Photography', 'Editorial'],
+  allCategoryLabel: 'All',
   hero: {
     name: 'AKASH KRISHNA',
     tagline: 'Visual Designer & Film Editor',

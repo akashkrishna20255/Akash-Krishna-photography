@@ -9,6 +9,12 @@ import {
   generateSecureOTP,
   SECURITY_CONFIG
 } from '../utils/security';
+import {
+  persistPhotosLocally,
+  loadPhotosLocally,
+  persistSiteContentLocally,
+  loadSiteContentLocally
+} from '../utils/persistentStorage';
 
 const STORAGE_KEY_PHOTOS = 'akash_portfolio_photos_v2';
 const STORAGE_KEY_SITE_CONTENT = 'akash_portfolio_site_content_v2';
@@ -19,7 +25,7 @@ const STORAGE_KEY_FAILED_ATTEMPTS = 'akash_portfolio_failed_attempts_v2';
 const STORAGE_KEY_LOCKOUT_UNTIL = 'akash_portfolio_lockout_until_v2';
 
 export const useGalleryStore = () => {
-  // Photos state
+  // Photos state - initialized from localStorage, enhanced with IndexedDB on mount
   const [photos, setPhotos] = useState<GalleryPhoto[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PHOTOS);
@@ -43,6 +49,11 @@ export const useGalleryStore = () => {
           return {
             ...DEFAULT_SITE_CONTENT,
             ...parsed,
+            categories:
+              Array.isArray(parsed.categories) && parsed.categories.length > 0
+                ? parsed.categories
+                : DEFAULT_SITE_CONTENT.categories,
+            allCategoryLabel: parsed.allCategoryLabel || DEFAULT_SITE_CONTENT.allCategoryLabel || 'All',
             hero: { ...DEFAULT_SITE_CONTENT.hero, ...parsed.hero },
             gallery: { ...DEFAULT_SITE_CONTENT.gallery, ...(parsed.gallery || {}) },
             about: { ...DEFAULT_SITE_CONTENT.about, ...parsed.about },
@@ -63,6 +74,13 @@ export const useGalleryStore = () => {
     }
     return DEFAULT_SITE_CONTENT;
   });
+
+  // Active categories list and 'All' tab label
+  const categories = siteContent.categories && siteContent.categories.length > 0
+    ? siteContent.categories
+    : DEFAULT_SITE_CONTENT.categories || ['Visual Design', 'Film & Motion', 'Photography', 'Editorial'];
+
+  const allCategoryLabel = siteContent.allCategoryLabel || 'All';
 
   // Stored password hash (initialized to hash of 'akash 1298')
   const [adminKeyHash, setAdminKeyHash] = useState<string>('');
@@ -105,49 +123,74 @@ export const useGalleryStore = () => {
     initHash();
   }, []);
 
-  // Sync photos from Cloudflare KV backend /api/photos on mount
+  // Multi-tier storage initialization on mount (IndexedDB -> Backend /api/photos -> LocalStorage)
   useEffect(() => {
     let isMounted = true;
-    const fetchKvPhotos = async () => {
+    const initializeStore = async () => {
+      // 1. Check IndexedDB for persisted photos (handles large payloads)
+      try {
+        const storedPhotos = await loadPhotosLocally();
+        if (storedPhotos && storedPhotos.length > 0 && isMounted) {
+          setPhotos(storedPhotos);
+        }
+      } catch (err) {
+        console.warn('Could not read photos from IndexedDB:', err);
+      }
+
+      // Check IndexedDB for persisted site content
+      try {
+        const storedContent = await loadSiteContentLocally();
+        if (storedContent && isMounted) {
+          setSiteContent((prev) => ({
+            ...prev,
+            ...storedContent,
+            categories: storedContent.categories || prev.categories,
+            allCategoryLabel: storedContent.allCategoryLabel || prev.allCategoryLabel
+          }));
+        }
+      } catch {}
+
+      // 2. Sync photos from backend /api/photos
       try {
         const res = await fetch('/api/photos');
         if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0 && isMounted) {
-            setPhotos(data);
-            try {
-              localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(data));
-            } catch (err) {
-              console.warn('LocalStorage save failed:', err);
-            }
+          const serverData = await res.json();
+          if (Array.isArray(serverData) && serverData.length > 0 && isMounted) {
+            setPhotos(serverData);
+            persistPhotosLocally(serverData);
+          } else {
+            // If backend is empty, seed it with our current photos
+            setPhotos((current) => {
+              if (current && current.length > 0) {
+                fetch('/api/photos', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(current)
+                }).catch(() => {});
+              }
+              return current;
+            });
           }
         }
       } catch {
         // Fallback to local storage
       }
     };
-    fetchKvPhotos();
+
+    initializeStore();
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // Sync photos to localStorage
+  // Sync photos to IndexedDB and localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(photos));
-    } catch (e) {
-      console.error('Failed to save photos to localStorage', e);
-    }
+    persistPhotosLocally(photos);
   }, [photos]);
 
-  // Sync site content to localStorage
+  // Sync site content to IndexedDB and localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_SITE_CONTENT, JSON.stringify(siteContent));
-    } catch (e) {
-      console.error('Failed to save site content to localStorage', e);
-    }
+    persistSiteContentLocally(siteContent);
   }, [siteContent]);
 
   // Sync Lockout info
@@ -278,6 +321,58 @@ export const useGalleryStore = () => {
     }));
   };
 
+  // Categories management with automatic photo category update cascade
+  const updateCategories = (
+    newCategories: string[],
+    newAllLabel = 'All',
+    renames: { from: string; to: string }[] = []
+  ) => {
+    if (!isAdmin) return;
+
+    // 1. Update siteContent
+    const updatedContent: SiteContent = {
+      ...siteContent,
+      categories: newCategories,
+      allCategoryLabel: newAllLabel
+    };
+    setSiteContent(updatedContent);
+    persistSiteContentLocally(updatedContent);
+
+    // 2. Cascade rename to photos if any category was renamed
+    if (renames && renames.length > 0) {
+      setPhotos((prev) => {
+        const next = prev.map((p) => {
+          const match = renames.find((r) => r.from === p.category);
+          return match ? { ...p, category: match.to } : p;
+        });
+        persistPhotosLocally(next);
+        fetch('/api/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(next)
+        }).catch(() => {});
+        return next;
+      });
+    }
+
+    // 3. Sync categories to backend
+    fetch('/api/kv/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCategories)
+    }).catch(() => {});
+  };
+
+  const updateAllCategoryLabel = (label: string) => {
+    if (!isAdmin) return;
+    const updatedContent: SiteContent = {
+      ...siteContent,
+      allCategoryLabel: label
+    };
+    setSiteContent(updatedContent);
+    persistSiteContentLocally(updatedContent);
+  };
+
   // Photo CRUD Operations with Cloudflare KV /api/photos sync
   const addPhoto = (photo: Omit<GalleryPhoto, 'id'>) => {
     const newPhoto: GalleryPhoto = {
@@ -286,11 +381,7 @@ export const useGalleryStore = () => {
     };
     setPhotos((prev) => {
       const next = [newPhoto, ...prev];
-      try {
-        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(next));
-      } catch (e) {
-        console.warn('Failed to immediately persist photos to localStorage:', e);
-      }
+      persistPhotosLocally(next);
 
       // Sync to Cloudflare Worker KV backend
       fetch('/api/photos', {
@@ -314,11 +405,7 @@ export const useGalleryStore = () => {
   const updatePhoto = (id: string, updatedFields: Partial<GalleryPhoto>): boolean => {
     setPhotos((prev) => {
       const next = prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p));
-      try {
-        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(next));
-      } catch (e) {
-        console.warn('Failed to immediately persist updated photo to localStorage:', e);
-      }
+      persistPhotosLocally(next);
 
       const updatedPhoto = next.find((p) => p.id === id);
 
@@ -353,11 +440,7 @@ export const useGalleryStore = () => {
   const deletePhoto = (id: string) => {
     setPhotos((prev) => {
       const next = prev.filter((p) => p.id !== id);
-      try {
-        localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(next));
-      } catch (e) {
-        console.warn('Failed to immediately persist photo deletion:', e);
-      }
+      persistPhotosLocally(next);
 
       // Sync collection and deletion to Cloudflare Worker KV
       fetch('/api/photos', {
@@ -377,11 +460,7 @@ export const useGalleryStore = () => {
   const resetToDefaultPhotos = () => {
     if (!isAdmin) return;
     setPhotos(DEFAULT_PHOTOS);
-    try {
-      localStorage.setItem(STORAGE_KEY_PHOTOS, JSON.stringify(DEFAULT_PHOTOS));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
+    persistPhotosLocally(DEFAULT_PHOTOS);
     fetch('/api/photos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -392,6 +471,7 @@ export const useGalleryStore = () => {
   const resetSiteContentToDefaults = () => {
     if (!isAdmin) return;
     setSiteContent(DEFAULT_SITE_CONTENT);
+    persistSiteContentLocally(DEFAULT_SITE_CONTENT);
   };
 
   // Secure Auth Login with Rate Limiting & Hashing
@@ -532,6 +612,8 @@ export const useGalleryStore = () => {
   return {
     photos,
     siteContent,
+    categories,
+    allCategoryLabel,
     isAdmin,
     adminEmail: SECURITY_CONFIG.REGISTERED_EMAIL,
     failedAttempts,
@@ -539,6 +621,8 @@ export const useGalleryStore = () => {
     addPhoto,
     updatePhoto,
     deletePhoto,
+    updateCategories,
+    updateAllCategoryLabel,
     resetToDefaultPhotos,
     updateSiteContent,
     updateHeroContent,

@@ -5,11 +5,12 @@ import { compressImageFile } from '../utils/imageCompressor';
 
 interface PhotoEditModalProps {
   photo: GalleryPhoto | null;
+  categories?: string[];
   onClose: () => void;
   onSave: (id: string, updated: Partial<GalleryPhoto>) => void;
 }
 
-const CATEGORIES: CategoryType[] = [
+const DEFAULT_CATEGORIES: CategoryType[] = [
   'Visual Design',
   'Film & Motion',
   'Photography',
@@ -18,8 +19,13 @@ const CATEGORIES: CategoryType[] = [
 
 const MAX_PROJECT_PHOTOS = 10;
 
-export const PhotoEditModal = ({ photo, onClose, onSave }: PhotoEditModalProps) => {
+export const PhotoEditModal = ({ photo, categories = DEFAULT_CATEGORIES, onClose, onSave }: PhotoEditModalProps) => {
   if (!photo) return null;
+
+  const activeCategories = Array.from(new Set([
+    ...(categories || DEFAULT_CATEGORIES),
+    photo.category
+  ])).filter(Boolean);
 
   const [title, setTitle] = useState(photo.title);
   const [category, setCategory] = useState<CategoryType>(photo.category);
@@ -365,7 +371,7 @@ export const PhotoEditModal = ({ photo, onClose, onSave }: PhotoEditModalProps) 
                 onChange={(e) => setCategory(e.target.value as CategoryType)}
                 className="w-full px-3.5 py-2.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-amber-400 cursor-pointer"
               >
-                {CATEGORIES.map((c) => (
+                {activeCategories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

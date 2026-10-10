@@ -1,10 +1,33 @@
+import fs from 'fs';
+import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
 import {defineConfig, Plugin} from 'vite';
 
 function mockKvApiPlugin(): Plugin {
-  const inMemoryKv: Record<string, any> = {};
+  const storeFilePath = path.resolve(__dirname, 'persisted_kv.json');
+
+  const loadStore = (): Record<string, any> => {
+    try {
+      if (fs.existsSync(storeFilePath)) {
+        const raw = fs.readFileSync(storeFilePath, 'utf-8');
+        return JSON.parse(raw);
+      }
+    } catch (err) {
+      console.warn('Failed to load persisted_kv.json:', err);
+    }
+    return {};
+  };
+
+  const saveStore = (data: Record<string, any>) => {
+    try {
+      fs.writeFileSync(storeFilePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn('Failed to save to persisted_kv.json:', err);
+    }
+  };
+
+  const kvStore = loadStore();
 
   return {
     name: 'mock-kv-api',
@@ -31,7 +54,8 @@ function mockKvApiPlugin(): Plugin {
         if (pathname === '/api/photos') {
           if (req.method === 'GET') {
             res.statusCode = 200;
-            return res.end(JSON.stringify(inMemoryKv['photos'] || []));
+            const photos = kvStore['photos'] || [];
+            return res.end(JSON.stringify(photos));
           }
           if (req.method === 'POST') {
             let body = '';
@@ -39,15 +63,16 @@ function mockKvApiPlugin(): Plugin {
             req.on('end', () => {
               try {
                 const parsed = JSON.parse(body);
-                inMemoryKv['photos'] = parsed;
+                kvStore['photos'] = parsed;
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                  inMemoryKv['photo_1'] = parsed[0];
+                  kvStore['photo_1'] = parsed[0];
                 }
+                saveStore(kvStore);
                 res.statusCode = 200;
-                return res.end(JSON.stringify({ success: true, message: 'Saved to mock KV' }));
-              } catch {
+                return res.end(JSON.stringify({ success: true, count: parsed.length }));
+              } catch (err) {
                 res.statusCode = 400;
-                return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+                return res.end(JSON.stringify({ error: 'Invalid JSON body' }));
               }
             });
             return;
@@ -58,7 +83,7 @@ function mockKvApiPlugin(): Plugin {
         if (pathname.startsWith('/api/kv/')) {
           const key = decodeURIComponent(pathname.replace('/api/kv/', ''));
           if (req.method === 'GET') {
-            const val = inMemoryKv[key];
+            const val = kvStore[key];
             if (val === undefined) {
               res.statusCode = 404;
               return res.end(JSON.stringify({ error: 'Key not found' }));
@@ -71,10 +96,11 @@ function mockKvApiPlugin(): Plugin {
             req.on('data', (chunk: any) => { body += chunk; });
             req.on('end', () => {
               try {
-                inMemoryKv[key] = JSON.parse(body);
+                kvStore[key] = JSON.parse(body);
               } catch {
-                inMemoryKv[key] = body;
+                kvStore[key] = body;
               }
+              saveStore(kvStore);
               res.statusCode = 200;
               return res.end(JSON.stringify({ success: true, key }));
             });
