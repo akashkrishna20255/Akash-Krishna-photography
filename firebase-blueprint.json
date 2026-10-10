@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Photo": {
+      "title": "Photo",
+      "description": "A single photo project in the portfolio.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "imageUrl"]
+    },
+    "SiteContent": {
+      "title": "SiteContent",
+      "description": "The configurable content for the website.",
+      "type": "object",
+      "properties": {
+        "hero": { "type": "object" },
+        "about": { "type": "object" },
+        "contact": { "type": "object" },
+        "categories": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["hero", "about", "contact"]
+    }
+  },
+  "firestore": {
+    "/photos/{photoId}": {
+      "schema": { "$ref": "Photo" },
+      "description": "Portfolio photos collection"
+    },
+    "/siteContent/main": {
+      "schema": { "$ref": "SiteContent" },
+      "description": "Main site content document"
+    }
+  }
+}
