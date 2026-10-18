@@ -11,6 +11,10 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
 };
 
+if (!firebaseConfig.projectId) {
+    console.error("Firebase config is missing required environment variables.");
+}
+
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID);
+export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || '');
 export const auth = getAuth();
