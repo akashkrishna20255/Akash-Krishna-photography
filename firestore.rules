@@ -13,14 +13,14 @@ service cloud.firestore {
     
     // Photos collection
     match /photos/{photoId} {
-      allow list, get: if true;
-      allow create, update, delete: if isSignedIn();
+      allow read: if true;
+      allow write: if isSignedIn(); // TODO: Add admin check
     }
     
     // Site content
     match /siteContent/{document=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSignedIn(); // TODO: Add admin check
     }
   }
 }

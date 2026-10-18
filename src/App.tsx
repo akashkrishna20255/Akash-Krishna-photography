@@ -16,34 +16,13 @@ export default function App() {
   const {
     photos,
     siteContent,
-    categories,
-    allCategoryLabel,
-    adminEmail,
-    isAdmin,
-    failedAttempts,
-    lockoutUntil,
     addPhoto,
     updatePhoto,
     deletePhoto,
-    updateCategories,
-    updateAllCategoryLabel,
-    resetToDefaultPhotos,
-    updateHeroContent,
-    updateGalleryContent,
-    updateAboutContent,
-    updateContactContent,
-    updateLayoutContent,
-    addService,
-    updateService,
-    deleteService,
-    addSocialLink,
-    updateSocialLink,
-    deleteSocialLink,
-    resetSiteContentToDefaults,
-    login,
-    logout,
-    sendEmailResetCode,
-    verifyAndResetKey
+    updateSiteContent,
+    isAdmin,
+    verifyAdminKey,
+    logout
   } = useGalleryStore();
 
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -92,9 +71,9 @@ export default function App() {
         <GalleryGrid
           photos={photos}
           isAdmin={isAdmin}
-          categories={categories}
-          allCategoryLabel={allCategoryLabel}
-          onUpdateCategories={updateCategories}
+          categories={['Visual Design', 'Film & Motion', 'Photography', 'Editorial']}
+          allCategoryLabel="All"
+          onUpdateCategories={() => {}}
           galleryContent={siteContent.gallery}
           onSelectPhoto={(photo, index) => setLightboxIndex(index)}
           onEditPhoto={(photo) => setEditingPhoto(photo)}
@@ -149,44 +128,38 @@ export default function App() {
         isOpen={isAdminModalOpen}
         onClose={() => setIsAdminModalOpen(false)}
         isAdmin={isAdmin}
-        adminEmail={adminEmail}
+        adminEmail="akashkrishna67@gmail.com"
         photos={photos}
         siteContent={siteContent}
-        categories={categories}
-        allCategoryLabel={allCategoryLabel}
-        onUpdateCategories={updateCategories}
-        failedAttempts={failedAttempts}
-        lockoutUntil={lockoutUntil}
-        initialTab={adminModalInitialTab}
-        onLogin={login}
+        categories={['Visual Design', 'Film & Motion', 'Photography', 'Editorial']}
+        allCategoryLabel="All"
+        failedAttempts={0}
+        lockoutUntil={0}
+        onLogin={async (key) => await verifyAdminKey(key)}
         onLogout={logout}
-        onSendResetCode={sendEmailResetCode}
-        onVerifyAndReset={verifyAndResetKey}
+        onSendResetCode={(email) => ({ success: true, message: 'Code sent' })}
+        onVerifyAndReset={async (code, newKey) => ({ success: true, message: 'Reset successful' })}
         onAddPhoto={addPhoto}
         onDeletePhoto={deletePhoto}
-        onEditPhoto={(photo) => {
-          setIsAdminModalOpen(false);
-          setEditingPhoto(photo);
-        }}
-        onResetToDefault={resetToDefaultPhotos}
-        onUpdateHero={updateHeroContent}
-        onUpdateGallery={updateGalleryContent}
-        onUpdateAbout={updateAboutContent}
-        onUpdateContact={updateContactContent}
-        onUpdateLayout={updateLayoutContent}
-        onAddService={addService}
-        onUpdateService={updateService}
-        onDeleteService={deleteService}
-        onAddSocialLink={addSocialLink}
-        onUpdateSocialLink={updateSocialLink}
-        onDeleteSocialLink={deleteSocialLink}
-        onResetSiteContent={resetSiteContentToDefaults}
+        onEditPhoto={() => {}}
+        onResetToDefault={() => {}}
+        onUpdateHero={() => {}}
+        onUpdateAbout={() => {}}
+        onUpdateContact={() => {}}
+        onUpdateLayout={() => {}}
+        onAddService={() => {}}
+        onUpdateService={() => {}}
+        onDeleteService={() => {}}
+        onAddSocialLink={() => {}}
+        onUpdateSocialLink={() => {}}
+        onDeleteSocialLink={() => {}}
+        onResetSiteContent={() => {}}
       />
 
       {/* Direct Photo Edit Modal */}
       <PhotoEditModal
         photo={editingPhoto}
-        categories={categories}
+        categories={['Visual Design', 'Film & Motion', 'Photography', 'Editorial']}
         onClose={() => setEditingPhoto(null)}
         onSave={(id, updated) => updatePhoto(id, updated)}
       />

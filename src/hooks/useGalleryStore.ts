@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { GalleryPhoto, SiteContent } from '../types/gallery';
 import { DEFAULT_PHOTOS } from '../data/defaultGallery';
 import { DEFAULT_SITE_CONTENT } from '../data/defaultSiteContent';
-import { db } from '../lib/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { signInAnonymously, signOut } from 'firebase/auth';
 
 const STORAGE_KEY_PHOTOS = 'akash_portfolio_photos_v2';
 const STORAGE_KEY_SITE_CONTENT = 'akash_portfolio_site_content_v2';
@@ -67,6 +68,27 @@ export const useGalleryStore = () => {
     await setDoc(doc(db, 'siteContent', 'main'), updated, { merge: true });
   };
 
+  const verifyAdminKey = async (key: string) => {
+    try {
+      const docRef = doc(db, "admin", "config");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().adminKey === key) {
+        await signInAnonymously(auth);
+        setIsAdmin(true);
+        return { success: true, message: 'Logged in' };
+      }
+      return { success: false, message: 'Invalid admin key' };
+    } catch (e) {
+      console.error('Error logging in', e);
+      return { success: false, message: 'Authentication error' };
+    }
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+    setIsAdmin(false);
+  };
+
   return {
     photos,
     siteContent,
@@ -74,6 +96,8 @@ export const useGalleryStore = () => {
     updatePhoto,
     deletePhoto,
     updateSiteContent,
-    isAdmin
+    isAdmin,
+    verifyAdminKey,
+    logout
   };
 };
